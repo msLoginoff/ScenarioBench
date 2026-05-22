@@ -331,3 +331,11 @@ details, or real Unicorn payloads.
 
 Unicorn-specific scenarios, auth, seed data, Docker overrides, and audit
 validation belong in a future private scenario adapter repository.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup and pull request
+guidelines.
+
+For repository labels, issue style, and maintainer workflow, see
+[docs/MAINTAINER_GUIDE.md](docs/MAINTAINER_GUIDE.md).

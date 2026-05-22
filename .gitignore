@@ -71,3 +71,7 @@ nunit-*.xml
 
 # Rider/ReSharper user settings
 *.DotSettings.user
+
+# Local AI handoff/context files
+AI_CONTEXT.md
+AI_*_CONTEXT.md
