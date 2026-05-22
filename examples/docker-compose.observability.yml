@@ -1,0 +1,36 @@
+name: scenariobench-observability
+
+services:
+  influxdb:
+    image: influxdb:1.8.10
+    ports:
+      - "127.0.0.1:${SCENARIOBENCH_INFLUXDB_PORT:-8086}:8086"
+    environment:
+      INFLUXDB_DB: nbomber
+      INFLUXDB_HTTP_AUTH_ENABLED: "true"
+      INFLUXDB_ADMIN_USER: admin
+      INFLUXDB_ADMIN_PASSWORD: admin
+      INFLUXDB_USER: nbomber
+      INFLUXDB_USER_PASSWORD: nbomber
+    volumes:
+      - scenariobench-influxdb:/var/lib/influxdb
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    ports:
+      - "127.0.0.1:${SCENARIOBENCH_GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - scenariobench-grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - influxdb
+
+volumes:
+  scenariobench-influxdb:
+  scenariobench-grafana:
