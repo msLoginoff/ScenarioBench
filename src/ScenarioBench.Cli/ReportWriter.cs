@@ -19,19 +19,40 @@ internal static class ReportWriter
         builder.AppendLine($"- Scenario: `{config.Scenario.Name}`");
         builder.AppendLine($"- Method: `{config.Scenario.Method}`");
         builder.AppendLine($"- Path: `{config.Scenario.Path}`");
-        builder.AppendLine($"- Rate: `{config.Scenario.RatePerSecond}` requests/sec");
-        builder.AppendLine($"- Duration: `{config.Scenario.DurationSeconds}` sec");
+        builder.AppendLine($"- Load profile: `{config.Scenario.GetEffectiveLoadProfile().Describe()}`");
+        builder.AppendLine($"- Warmup: `{config.Scenario.WarmupSeconds}` sec");
         builder.AppendLine();
 
-        builder.AppendLine("| Target | Requests | OK | Failed | RPS | Mean, ms | P50, ms | P95, ms | P99, ms | Max, ms |");
-        builder.AppendLine("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+        builder.AppendLine("| Target | Status | Requests | OK | Failed | RPS | Mean, ms | P50, ms | P95, ms | P99, ms | Max, ms |");
+        builder.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
 
         foreach (var target in targets)
         {
             builder.AppendLine(
                 string.Create(
                     CultureInfo.InvariantCulture,
-                    $"| {target.TargetName} | {target.TotalRequests} | {target.OkRequests} | {target.FailedRequests} | {target.RequestsPerSecond:F2} | {target.MeanMs:F2} | {target.P50Ms:F2} | {target.P95Ms:F2} | {target.P99Ms:F2} | {target.MaxMs:F2} |"));
+                    $"| {target.TargetName} | {(target.Passed ? "PASS" : "FAIL")} | {target.TotalRequests} | {target.OkRequests} | {target.FailedRequests} | {target.RequestsPerSecond:F2} | {target.MeanMs:F2} | {target.P50Ms:F2} | {target.P95Ms:F2} | {target.P99Ms:F2} | {target.MaxMs:F2} |"));
+        }
+
+        var failedTargets = targets.Where(target => !target.Passed).ToArray();
+        if (failedTargets.Length > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine("## Failed Thresholds");
+            builder.AppendLine();
+
+            foreach (var target in failedTargets)
+            {
+                builder.AppendLine($"### {target.TargetName}");
+                builder.AppendLine();
+
+                foreach (var reason in target.FailureReasons)
+                {
+                    builder.AppendLine($"- {reason}");
+                }
+
+                builder.AppendLine();
+            }
         }
 
         var baseline = targets.FirstOrDefault();
@@ -62,7 +83,7 @@ internal static class ReportWriter
             return "n/a";
         }
 
-        var delta = (value - baseline) / baseline * 100;
+        var delta = (value - baseline) / baseline;
         return delta.ToString("+#0.##%;-#0.##%;0%", CultureInfo.InvariantCulture);
     }
 }

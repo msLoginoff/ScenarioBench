@@ -1,0 +1,31 @@
+{
+  "runName": "http-compare",
+  "targets": [
+    {
+      "name": "old",
+      "baseUrl": "http://127.0.0.1:5012"
+    },
+    {
+      "name": "new",
+      "baseUrl": "http://127.0.0.1:5013"
+    }
+  ],
+  "scenario": {
+    "name": "work-baseline",
+    "method": "GET",
+    "path": "/work",
+    "warmupSeconds": 2,
+    "loadProfile": {
+      "type": "inject",
+      "ratePerSecond": 10,
+      "durationSeconds": 15
+    },
+    "timeoutSeconds": 10,
+    "expectedStatusCodes": [200],
+    "thresholds": {
+      "maxFailedRequests": 0,
+      "maxP95Ms": 500,
+      "maxP99Ms": 1000
+    }
+  }
+}

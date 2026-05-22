@@ -10,9 +10,17 @@
     "name": "http-smoke",
     "method": "GET",
     "path": "/health",
-    "ratePerSecond": 5,
-    "durationSeconds": 5,
+    "warmupSeconds": 0,
+    "loadProfile": {
+      "type": "inject",
+      "ratePerSecond": 5,
+      "durationSeconds": 5
+    },
     "timeoutSeconds": 10,
-    "expectedStatusCodes": [200]
+    "expectedStatusCodes": [200],
+    "thresholds": {
+      "maxFailedRequests": 0,
+      "maxP95Ms": 1000
+    }
   }
 }

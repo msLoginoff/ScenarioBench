@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using NBomber.Contracts;
 using NBomber.Contracts.Stats;
 using NBomber.CSharp;
 using NBomber.Sinks.InfluxDB;
@@ -77,12 +78,11 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
                         message: $"Unexpected status code: {statusCode}",
                         sizeBytes: sizeBytes);
                 }))
-            .WithoutWarmUp()
-            .WithLoadSimulations(
-                Simulation.Inject(
-                    rate: config.Scenario.RatePerSecond,
-                    interval: TimeSpan.FromSeconds(1),
-                    during: TimeSpan.FromSeconds(config.Scenario.DurationSeconds)));
+            .WithLoadSimulations(CreateLoadSimulation(config.Scenario.GetEffectiveLoadProfile()));
+
+        scenario = config.Scenario.WarmupSeconds > 0
+            ? scenario.WithWarmUpDuration(TimeSpan.FromSeconds(config.Scenario.WarmupSeconds))
+            : scenario.WithoutWarmUp();
 
         var nbomber = NBomberRunner
             .RegisterScenarios(scenario)
@@ -146,6 +146,35 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         return request;
     }
 
+    private static LoadSimulation CreateLoadSimulation(LoadProfileConfig profile)
+    {
+        var duration = TimeSpan.FromSeconds(profile.DurationSeconds);
+        var interval = TimeSpan.FromSeconds(profile.IntervalSeconds);
+
+        return profile.Type switch
+        {
+            LoadProfileTypes.Inject => Simulation.Inject(
+                rate: profile.RatePerSecond!.Value,
+                interval: interval,
+                during: duration),
+
+            LoadProfileTypes.RampingInject => Simulation.RampingInject(
+                rate: profile.RatePerSecond!.Value,
+                interval: interval,
+                during: duration),
+
+            LoadProfileTypes.Constant => Simulation.KeepConstant(
+                copies: profile.Copies!.Value,
+                during: duration),
+
+            LoadProfileTypes.RampingConstant => Simulation.RampingConstant(
+                copies: profile.Copies!.Value,
+                during: duration),
+
+            _ => throw new InvalidOperationException($"Unsupported load profile type: {profile.Type}")
+        };
+    }
+
     private static string CreateRunId(string runName)
     {
         return $"{SanitizeName(runName)}-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}";
@@ -186,7 +215,9 @@ internal sealed record TargetRunResult(
     double P99Ms,
     double MinMs,
     double MaxMs,
-    double DurationSeconds)
+    double DurationSeconds,
+    bool Passed,
+    IReadOnlyList<string> FailureReasons)
 {
     public static TargetRunResult FromStats(
         TargetConfig target,
@@ -199,7 +230,7 @@ internal sealed record TargetRunResult(
         var okRequests = requestStep.Ok.Request.Count;
         var failedRequests = requestStep.Fail.Request.Count;
 
-        return new TargetRunResult(
+        var result = new TargetRunResult(
             TargetName: target.Name,
             BaseUrl: target.BaseUrl.ToString(),
             ScenarioName: scenario.ScenarioName,
@@ -214,6 +245,51 @@ internal sealed record TargetRunResult(
             P99Ms: requestStep.Ok.Latency.Percent99,
             MinMs: requestStep.Ok.Latency.MinMs,
             MaxMs: requestStep.Ok.Latency.MaxMs,
-            DurationSeconds: scenario.Duration.TotalSeconds);
+            DurationSeconds: scenario.Duration.TotalSeconds,
+            Passed: true,
+            FailureReasons: []);
+
+        var failureReasons = EvaluateThresholds(result, scenarioConfig.Thresholds);
+        return result with
+        {
+            Passed = failureReasons.Count == 0,
+            FailureReasons = failureReasons
+        };
+    }
+
+    private static IReadOnlyList<string> EvaluateThresholds(TargetRunResult result, ThresholdConfig thresholds)
+    {
+        var failures = new List<string>();
+
+        if (result.FailedRequests > thresholds.MaxFailedRequests)
+        {
+            failures.Add($"failed requests {result.FailedRequests} > {thresholds.MaxFailedRequests}");
+        }
+
+        if (thresholds.MaxFailedPercent is not null && result.TotalRequests > 0)
+        {
+            var failedPercent = (double)result.FailedRequests / result.TotalRequests * 100;
+            if (failedPercent > thresholds.MaxFailedPercent.Value)
+            {
+                failures.Add($"failed percent {failedPercent:F2}% > {thresholds.MaxFailedPercent.Value:F2}%");
+            }
+        }
+
+        if (thresholds.MaxP95Ms is not null && result.P95Ms > thresholds.MaxP95Ms.Value)
+        {
+            failures.Add($"p95 {result.P95Ms:F2}ms > {thresholds.MaxP95Ms.Value:F2}ms");
+        }
+
+        if (thresholds.MaxP99Ms is not null && result.P99Ms > thresholds.MaxP99Ms.Value)
+        {
+            failures.Add($"p99 {result.P99Ms:F2}ms > {thresholds.MaxP99Ms.Value:F2}ms");
+        }
+
+        if (thresholds.MinRequestsPerSecond is not null && result.RequestsPerSecond < thresholds.MinRequestsPerSecond.Value)
+        {
+            failures.Add($"RPS {result.RequestsPerSecond:F2} < {thresholds.MinRequestsPerSecond.Value:F2}");
+        }
+
+        return failures;
     }
 }

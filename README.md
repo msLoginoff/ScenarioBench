@@ -172,10 +172,18 @@ root gets `comparison.md`.
     "name": "http-smoke",
     "method": "GET",
     "path": "/health",
-    "ratePerSecond": 5,
-    "durationSeconds": 5,
+    "warmupSeconds": 0,
+    "loadProfile": {
+      "type": "inject",
+      "ratePerSecond": 5,
+      "durationSeconds": 5
+    },
     "timeoutSeconds": 10,
-    "expectedStatusCodes": [200]
+    "expectedStatusCodes": [200],
+    "thresholds": {
+      "maxFailedRequests": 0,
+      "maxP95Ms": 1000
+    }
   }
 }
 ```
@@ -200,6 +208,30 @@ Then open:
 
 ```text
 http://127.0.0.1:3000/d/scenariobench-nbomber-overview/scenariobench-nbomber-overview
+```
+
+## Compare Demo
+
+Start two demo targets with different `/work` latency:
+
+```bash
+docker compose -f examples/docker-compose.compare.yml up -d --build
+```
+
+Run comparison:
+
+```bash
+dotnet run --project src/ScenarioBench.Cli -- \
+  --config examples/http-compare.json \
+  --infra-config examples/infra/influxdb.json
+```
+
+The first target in the config is the baseline for `comparison.md`.
+
+Stop compare targets:
+
+```bash
+docker compose -f examples/docker-compose.compare.yml down
 ```
 
 ## How To Use Grafana
@@ -250,6 +282,13 @@ What you cannot change in Grafana:
 
 Those are controlled by the JSON config, for example
 `examples/http-smoke.json`.
+
+Supported load profile types:
+
+- `inject`: inject a fixed request rate;
+- `rampingInject`: ramp from zero to the configured request rate;
+- `constant`: keep a fixed number of scenario copies/users;
+- `rampingConstant`: ramp from zero to the configured number of copies/users.
 
 ## Reading Metrics
 

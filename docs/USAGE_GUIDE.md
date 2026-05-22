@@ -104,10 +104,18 @@ Important fields:
     "name": "http-smoke",
     "method": "GET",
     "path": "/health",
-    "ratePerSecond": 5,
-    "durationSeconds": 5,
+    "warmupSeconds": 0,
+    "loadProfile": {
+      "type": "inject",
+      "ratePerSecond": 5,
+      "durationSeconds": 5
+    },
     "timeoutSeconds": 10,
-    "expectedStatusCodes": [200]
+    "expectedStatusCodes": [200],
+    "thresholds": {
+      "maxFailedRequests": 0,
+      "maxP95Ms": 1000
+    }
   }
 }
 ```
@@ -116,8 +124,18 @@ To test another port, change `baseUrl`.
 
 To change load, change:
 
-- `ratePerSecond`;
-- `durationSeconds`.
+- `loadProfile.type`;
+- `loadProfile.ratePerSecond`;
+- `loadProfile.copies`;
+- `loadProfile.durationSeconds`;
+- `warmupSeconds`.
+
+Supported load profile types:
+
+- `inject`: fixed request rate;
+- `rampingInject`: ramp from zero to the configured request rate;
+- `constant`: fixed number of scenario copies/users;
+- `rampingConstant`: ramp from zero to the configured number of copies/users.
 
 To test another endpoint, change:
 
@@ -126,6 +144,14 @@ To test another endpoint, change:
 - optional `body`;
 - optional `headers`;
 - `expectedStatusCodes`.
+
+To define pass/fail rules, change:
+
+- `thresholds.maxFailedRequests`;
+- `thresholds.maxFailedPercent`;
+- `thresholds.maxP95Ms`;
+- `thresholds.maxP99Ms`;
+- `thresholds.minRequestsPerSecond`.
 
 ## How To Compare Targets
 
@@ -148,10 +174,19 @@ A comparison run should contain two or more targets:
     "name": "update-visit",
     "method": "POST",
     "path": "/some-endpoint",
-    "ratePerSecond": 20,
-    "durationSeconds": 60,
+    "warmupSeconds": 10,
+    "loadProfile": {
+      "type": "inject",
+      "ratePerSecond": 20,
+      "durationSeconds": 60
+    },
     "timeoutSeconds": 30,
-    "expectedStatusCodes": [200]
+    "expectedStatusCodes": [200],
+    "thresholds": {
+      "maxFailedRequests": 0,
+      "maxP95Ms": 750,
+      "maxP99Ms": 1500
+    }
   }
 }
 ```
@@ -233,10 +268,7 @@ This is not yet enough for a strong production-grade performance conclusion.
 
 For serious application benchmarking, add:
 
-- multi-target demo config to exercise old vs new comparison;
 - richer scenario definitions, not only one HTTP request;
-- warmup phase configuration;
-- ramp-up/ramp-down load profiles;
 - constant load, stress, spike, and soak profiles;
 - per-target scenario params, for example old/new URLs and auth;
 - authentication and token refresh support;
@@ -245,7 +277,6 @@ For serious application benchmarking, add:
 - target-side metrics: app CPU, memory, GC, DB query count, DB CPU/IO;
 - container metrics, for example cAdvisor/Prometheus later;
 - database metrics, for example PostgreSQL exporter later;
-- threshold/pass-fail rules, for example p95 < N ms and failed < 1%;
 - run metadata, for example commit SHA, branch, environment, DB seed version;
 - stable benchmark environment for capacity tests.
 
@@ -339,4 +370,3 @@ Running against two dev/stage domains is valid:
 
 Just remember that network, database, background jobs, and shared environment
 noise can affect the result.
-

@@ -27,7 +27,7 @@ try
     Console.WriteLine($"Artifacts: {runResult.ArtifactDirectory}");
     Console.WriteLine($"Comparison: {runResult.ComparisonReportPath}");
 
-    return runResult.Targets.Any(target => target.FailedRequests > 0) ? 1 : 0;
+    return runResult.Targets.Any(target => !target.Passed) ? 1 : 0;
 }
 catch (Exception ex)
 {

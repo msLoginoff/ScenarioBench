@@ -1,0 +1,22 @@
+name: scenariobench-compare
+
+services:
+  old-api:
+    build:
+      context: ./demo-api
+    ports:
+      - "127.0.0.1:${SCENARIOBENCH_COMPARE_OLD_PORT:-5012}:8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      SCENARIOBENCH_DEFAULT_WORK_DELAY_MS: 30
+      SCENARIOBENCH_DEFAULT_WORK_BYTES: 512
+
+  new-api:
+    build:
+      context: ./demo-api
+    ports:
+      - "127.0.0.1:${SCENARIOBENCH_COMPARE_NEW_PORT:-5013}:8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      SCENARIOBENCH_DEFAULT_WORK_DELAY_MS: 90
+      SCENARIOBENCH_DEFAULT_WORK_BYTES: 512

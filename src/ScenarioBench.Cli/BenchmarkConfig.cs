@@ -99,6 +99,10 @@ internal sealed record ScenarioConfig
 
     public int DurationSeconds { get; init; } = 30;
 
+    public int WarmupSeconds { get; init; }
+
+    public LoadProfileConfig? LoadProfile { get; init; }
+
     public int TimeoutSeconds { get; init; } = 30;
 
     public string? Body { get; init; }
@@ -108,6 +112,8 @@ internal sealed record ScenarioConfig
     public IReadOnlyDictionary<string, string> Headers { get; init; } = new Dictionary<string, string>();
 
     public IReadOnlyList<int> ExpectedStatusCodes { get; init; } = [200];
+
+    public ThresholdConfig Thresholds { get; init; } = new();
 
     public void Validate()
     {
@@ -121,14 +127,24 @@ internal sealed record ScenarioConfig
             throw new InvalidOperationException("Scenario method is required.");
         }
 
-        if (RatePerSecond <= 0)
+        LoadProfile?.Validate();
+
+        if (LoadProfile is null)
         {
-            throw new InvalidOperationException("Scenario ratePerSecond must be greater than 0.");
+            if (RatePerSecond <= 0)
+            {
+                throw new InvalidOperationException("Scenario ratePerSecond must be greater than 0.");
+            }
+
+            if (DurationSeconds <= 0)
+            {
+                throw new InvalidOperationException("Scenario durationSeconds must be greater than 0.");
+            }
         }
 
-        if (DurationSeconds <= 0)
+        if (WarmupSeconds < 0)
         {
-            throw new InvalidOperationException("Scenario durationSeconds must be greater than 0.");
+            throw new InvalidOperationException("Scenario warmupSeconds cannot be negative.");
         }
 
         if (TimeoutSeconds <= 0)
@@ -139,6 +155,130 @@ internal sealed record ScenarioConfig
         if (ExpectedStatusCodes.Count == 0)
         {
             throw new InvalidOperationException("Scenario expectedStatusCodes must contain at least one status code.");
+        }
+
+        Thresholds.Validate();
+    }
+
+    public LoadProfileConfig GetEffectiveLoadProfile()
+    {
+        return LoadProfile ?? new LoadProfileConfig
+        {
+            Type = LoadProfileTypes.Inject,
+            RatePerSecond = RatePerSecond,
+            DurationSeconds = DurationSeconds
+        };
+    }
+}
+
+internal static class LoadProfileTypes
+{
+    public const string Inject = "inject";
+    public const string Constant = "constant";
+    public const string RampingInject = "rampingInject";
+    public const string RampingConstant = "rampingConstant";
+}
+
+internal sealed record LoadProfileConfig
+{
+    public string Type { get; init; } = LoadProfileTypes.Inject;
+
+    public int? RatePerSecond { get; init; }
+
+    public int? Copies { get; init; }
+
+    public int DurationSeconds { get; init; } = 30;
+
+    public int IntervalSeconds { get; init; } = 1;
+
+    public void Validate()
+    {
+        if (DurationSeconds <= 0)
+        {
+            throw new InvalidOperationException("Scenario loadProfile.durationSeconds must be greater than 0.");
+        }
+
+        if (IntervalSeconds <= 0)
+        {
+            throw new InvalidOperationException("Scenario loadProfile.intervalSeconds must be greater than 0.");
+        }
+
+        switch (Type)
+        {
+            case LoadProfileTypes.Inject:
+            case LoadProfileTypes.RampingInject:
+                if (RatePerSecond is null or <= 0)
+                {
+                    throw new InvalidOperationException($"Scenario loadProfile.ratePerSecond must be greater than 0 for '{Type}'.");
+                }
+
+                break;
+
+            case LoadProfileTypes.Constant:
+            case LoadProfileTypes.RampingConstant:
+                if (Copies is null or <= 0)
+                {
+                    throw new InvalidOperationException($"Scenario loadProfile.copies must be greater than 0 for '{Type}'.");
+                }
+
+                break;
+
+            default:
+                throw new InvalidOperationException(
+                    $"Unsupported scenario loadProfile.type '{Type}'. Supported values: inject, constant, rampingInject, rampingConstant.");
+        }
+    }
+
+    public string Describe()
+    {
+        return Type switch
+        {
+            LoadProfileTypes.Inject => $"inject {RatePerSecond} req/sec for {DurationSeconds}s",
+            LoadProfileTypes.RampingInject => $"ramping inject to {RatePerSecond} req/sec for {DurationSeconds}s",
+            LoadProfileTypes.Constant => $"constant {Copies} copies for {DurationSeconds}s",
+            LoadProfileTypes.RampingConstant => $"ramping constant to {Copies} copies for {DurationSeconds}s",
+            _ => Type
+        };
+    }
+}
+
+internal sealed record ThresholdConfig
+{
+    public int MaxFailedRequests { get; init; }
+
+    public double? MaxFailedPercent { get; init; }
+
+    public double? MaxP95Ms { get; init; }
+
+    public double? MaxP99Ms { get; init; }
+
+    public double? MinRequestsPerSecond { get; init; }
+
+    public void Validate()
+    {
+        if (MaxFailedRequests < 0)
+        {
+            throw new InvalidOperationException("Scenario thresholds.maxFailedRequests cannot be negative.");
+        }
+
+        if (MaxFailedPercent is < 0 or > 100)
+        {
+            throw new InvalidOperationException("Scenario thresholds.maxFailedPercent must be between 0 and 100.");
+        }
+
+        if (MaxP95Ms is <= 0)
+        {
+            throw new InvalidOperationException("Scenario thresholds.maxP95Ms must be greater than 0.");
+        }
+
+        if (MaxP99Ms is <= 0)
+        {
+            throw new InvalidOperationException("Scenario thresholds.maxP99Ms must be greater than 0.");
+        }
+
+        if (MinRequestsPerSecond is <= 0)
+        {
+            throw new InvalidOperationException("Scenario thresholds.minRequestsPerSecond must be greater than 0.");
         }
     }
 }
