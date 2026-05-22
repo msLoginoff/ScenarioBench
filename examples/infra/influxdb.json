@@ -1,0 +1,14 @@
+{
+  "InfluxDBSink": {
+    "Url": "http://127.0.0.1:8086",
+    "Database": "nbomber",
+    "UserName": "nbomber",
+    "Password": "nbomber",
+    "CustomTags": [
+      {
+        "Key": "source",
+        "Value": "scenario-bench"
+      }
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "runName": "http-smoke",
+  "targets": [
+    {
+      "name": "local",
+      "baseUrl": "http://127.0.0.1:5002"
+    }
+  ],
+  "scenario": {
+    "name": "http-smoke",
+    "method": "GET",
+    "path": "/health",
+    "ratePerSecond": 5,
+    "durationSeconds": 5,
+    "timeoutSeconds": 10,
+    "expectedStatusCodes": [200]
+  }
+}
