@@ -68,3 +68,6 @@ nunit-*.xml
 # Local environment
 .env.*
 !.env.example
+
+# Rider/ReSharper user settings
+*.DotSettings.user
