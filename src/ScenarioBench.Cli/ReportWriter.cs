@@ -16,6 +16,7 @@ internal static class ReportWriter
         builder.AppendLine($"# ScenarioBench Comparison: {config.RunName}");
         builder.AppendLine();
         builder.AppendLine($"- Run ID: `{runId}`");
+        AppendMetadata(builder, config.Metadata);
         builder.AppendLine($"- Scenario: `{config.Scenario.Name}`");
         builder.AppendLine($"- Method: `{config.Scenario.Method}`");
         builder.AppendLine($"- Path: `{config.Scenario.Path}`");
@@ -74,6 +75,24 @@ internal static class ReportWriter
         }
 
         await File.WriteAllTextAsync(path, builder.ToString());
+    }
+
+    private static void AppendMetadata(StringBuilder builder, RunMetadataConfig metadata)
+    {
+        AppendOptional(builder, "Environment", metadata.Environment);
+        AppendOptional(builder, "Branch", metadata.Branch);
+        AppendOptional(builder, "Commit", metadata.Commit);
+        AppendOptional(builder, "Version", metadata.Version);
+        AppendOptional(builder, "Build", metadata.Build);
+        AppendOptional(builder, "Seed", metadata.Seed);
+    }
+
+    private static void AppendOptional(StringBuilder builder, string name, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            builder.AppendLine($"- {name}: `{value}`");
+        }
     }
 
     private static string PercentDelta(double value, double baseline)

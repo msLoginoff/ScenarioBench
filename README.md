@@ -155,17 +155,26 @@ artifacts/<run-id>/
 ```
 
 Each target gets its own NBomber reports and normalized `result.json`. The run
-root gets `comparison.md`.
+root gets `comparison.md`, copied input configs, and `manifest.json`.
 
 ## Example Config
 
 ```json
 {
   "runName": "http-smoke",
+  "metadata": {
+    "environment": "local-docker",
+    "branch": "demo",
+    "version": "demo",
+    "seed": "demo"
+  },
   "targets": [
     {
       "name": "local",
-      "baseUrl": "http://127.0.0.1:5002"
+      "baseUrl": "http://127.0.0.1:5002",
+      "tags": {
+        "kind": "demo"
+      }
     }
   ],
   "scenario": {
@@ -243,25 +252,15 @@ streamed to InfluxDB.
 
 The dashboard has variables at the top:
 
-- `Target A`: first NBomber test name to inspect.
-- `Target B`: second NBomber test name to inspect.
+- `Run`: concrete benchmark run id, for example `http-compare-20260522-122358`.
+- `Scenario`: scenario name inside the run, for example `work-baseline`.
+- `Target A`: first target to inspect, for example `old`.
+- `Target B`: second target to inspect, for example `new`.
 - `Step`: usually select `request`.
 
 For a one-target smoke run, set both `Target A` and `Target B` to the same
-value. Once there are old/new runs, select old in `Target A` and new in
-`Target B`.
-
-Current target values look like:
-
-```text
-http-smoke/local/http-smoke
-```
-
-This is NBomber's test name:
-
-```text
-<runName>/<targetName>/<scenarioName>
-```
+value. For an old/new comparison, select the same `Run`, then select `old` in
+`Target A` and `new` in `Target B`.
 
 What you can change in Grafana:
 
@@ -323,6 +322,7 @@ Local artifacts are best for stable, shareable run summaries:
 
 ```text
 artifacts/<run-id>/comparison.md
+artifacts/<run-id>/manifest.json
 artifacts/<run-id>/<target>/result.json
 ```
 
@@ -330,6 +330,7 @@ Grafana is best for interactive inspection:
 
 - watch metrics during a run;
 - compare target A vs target B on one screen;
+- filter by `run_id`, `scenario`, `target`, and `step`;
 - change time range;
 - inspect latency/RPS over time;
 - use Explore for custom queries.

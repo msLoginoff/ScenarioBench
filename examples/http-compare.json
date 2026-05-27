@@ -1,13 +1,25 @@
 {
   "runName": "http-compare",
+  "metadata": {
+    "environment": "local-docker",
+    "branch": "demo",
+    "version": "demo",
+    "seed": "compare-demo"
+  },
   "targets": [
     {
       "name": "old",
-      "baseUrl": "http://127.0.0.1:5012"
+      "baseUrl": "http://127.0.0.1:5012",
+      "tags": {
+        "version": "old"
+      }
     },
     {
       "name": "new",
-      "baseUrl": "http://127.0.0.1:5013"
+      "baseUrl": "http://127.0.0.1:5013",
+      "tags": {
+        "version": "new"
+      }
     }
   ],
   "scenario": {

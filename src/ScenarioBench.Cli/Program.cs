@@ -26,6 +26,7 @@ try
     Console.WriteLine($"ScenarioBench run completed: {runResult.RunId}");
     Console.WriteLine($"Artifacts: {runResult.ArtifactDirectory}");
     Console.WriteLine($"Comparison: {runResult.ComparisonReportPath}");
+    Console.WriteLine($"Manifest: {runResult.ManifestPath}");
 
     return runResult.Targets.Any(target => !target.Passed) ? 1 : 0;
 }

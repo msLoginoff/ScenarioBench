@@ -198,16 +198,52 @@ Grafana comparison works differently:
 
 1. Run benchmark with `--infra-config`.
 2. Open dashboard.
-3. Select old run in `Target A`.
-4. Select new run in `Target B`.
-5. Select `request` in `Step`.
-6. Set time range to cover both runs, for example last 30 minutes.
+3. Select the concrete benchmark in `Run`.
+4. Select the scenario in `Scenario`.
+5. Select `old` in `Target A`.
+6. Select `new` in `Target B`.
+7. Select `request` in `Step`.
+8. Set time range to cover the run, for example last 30 minutes.
 
-Current target values in Grafana look like:
+The `Run` value looks like:
 
 ```text
-<runName>/<targetName>/<scenarioName>
+http-compare-20260522-122358
 ```
+
+The target values are the names from config, for example `old`, `new`, or
+`local`.
+
+## Run Metadata And Artifacts
+
+ScenarioBench writes run metadata to both local artifacts and InfluxDB tags.
+
+Useful config fields:
+
+- `metadata.environment`: local, local-docker, dev, stage, prod-like.
+- `metadata.branch`: source branch or comparison branch label.
+- `metadata.commit`: git SHA.
+- `metadata.version`: app version, image tag, or benchmark label.
+- `metadata.build`: CI build number.
+- `metadata.seed`: deterministic data seed version.
+- `metadata.tags`: additional public generic tags.
+- `targets[].tags`: target-specific tags; in InfluxDB they are prefixed with
+  `target_`, for example `target_version`.
+
+Each run writes:
+
+```text
+artifacts/<run-id>/config.json
+artifacts/<run-id>/infra-config.json
+artifacts/<run-id>/infra-config.generated/<target>.json
+artifacts/<run-id>/manifest.json
+artifacts/<run-id>/comparison.md
+artifacts/<run-id>/<target>/result.json
+```
+
+`manifest.json` is the machine-readable run summary. It contains the run id,
+timestamps, config paths, metadata, scenario, thresholds, every target result,
+and the final pass/fail status.
 
 Example:
 

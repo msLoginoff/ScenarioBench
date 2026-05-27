@@ -1,9 +1,18 @@
 {
   "runName": "http-smoke",
+  "metadata": {
+    "environment": "local-docker",
+    "branch": "demo",
+    "version": "demo",
+    "seed": "demo"
+  },
   "targets": [
     {
       "name": "local",
-      "baseUrl": "http://127.0.0.1:5002"
+      "baseUrl": "http://127.0.0.1:5002",
+      "tags": {
+        "kind": "demo"
+      }
     }
   ],
   "scenario": {

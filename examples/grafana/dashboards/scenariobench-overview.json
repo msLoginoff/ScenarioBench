@@ -72,7 +72,7 @@
           "measurement": "nbomber",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT last(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"test_name\" =~ /^$target_a$/ AND \"step\" =~ /^$step$/",
+          "query": "SELECT last(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -125,7 +125,7 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT last(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"test_name\" =~ /^$target_a$/ AND \"step\" =~ /^$step$/",
+          "query": "SELECT last(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -177,7 +177,7 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT last(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"test_name\" =~ /^$target_b$/ AND \"step\" =~ /^$step$/",
+          "query": "SELECT last(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -229,7 +229,7 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT last(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"test_name\" =~ /^$target_b$/ AND \"step\" =~ /^$step$/",
+          "query": "SELECT last(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -316,7 +316,7 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.latency.percent50\") FROM \"nbomber\" WHERE $timeFilter AND \"test_name\" =~ /^$target_a$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.latency.percent50\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -327,7 +327,7 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"test_name\" =~ /^$target_a$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series"
@@ -338,7 +338,7 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.latency.percent99\") FROM \"nbomber\" WHERE $timeFilter AND \"test_name\" =~ /^$target_a$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.latency.percent99\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "C",
           "resultFormat": "time_series"
@@ -425,7 +425,7 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.latency.percent50\") FROM \"nbomber\" WHERE $timeFilter AND \"test_name\" =~ /^$target_b$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.latency.percent50\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -436,7 +436,7 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"test_name\" =~ /^$target_b$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series"
@@ -447,7 +447,7 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.latency.percent99\") FROM \"nbomber\" WHERE $timeFilter AND \"test_name\" =~ /^$target_b$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.latency.percent99\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "C",
           "resultFormat": "time_series"
@@ -498,7 +498,7 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"test_name\" =~ /^$target_a$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -509,7 +509,7 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"fail.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"test_name\" =~ /^$target_a$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"fail.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series"
@@ -560,7 +560,7 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"test_name\" =~ /^$target_b$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -571,7 +571,7 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"fail.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"test_name\" =~ /^$target_b$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"fail.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series"
@@ -595,13 +595,32 @@
           "type": "influxdb",
           "uid": "scenariobench-influxdb"
         },
-        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"test_name\"",
+        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"run_id\"",
         "hide": 0,
         "includeAll": false,
-        "label": "Target A",
+        "label": "Run",
         "multi": false,
-        "name": "target_a",
-        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"test_name\"",
+        "name": "run_id",
+        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"run_id\"",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 2,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "influxdb",
+          "uid": "scenariobench-influxdb"
+        },
+        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"scenario\"",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Scenario",
+        "multi": false,
+        "name": "scenario",
+        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"scenario\"",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -614,13 +633,32 @@
           "type": "influxdb",
           "uid": "scenariobench-influxdb"
         },
-        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"test_name\"",
+        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"target\"",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Target A",
+        "multi": false,
+        "name": "target_a",
+        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"target\"",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "influxdb",
+          "uid": "scenariobench-influxdb"
+        },
+        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"target\"",
         "hide": 0,
         "includeAll": false,
         "label": "Target B",
         "multi": false,
         "name": "target_b",
-        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"test_name\"",
+        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"target\"",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,

@@ -12,6 +12,8 @@ internal sealed record BenchmarkConfig
 
     public string RunName { get; init; } = "scenario-bench";
 
+    public RunMetadataConfig Metadata { get; init; } = new();
+
     public IReadOnlyList<TargetConfig> Targets { get; init; } = [];
 
     public ScenarioConfig Scenario { get; init; } = new();
@@ -65,6 +67,25 @@ internal sealed record BenchmarkConfig
     }
 }
 
+internal sealed record RunMetadataConfig
+{
+    public string? Environment { get; init; }
+
+    public string? Branch { get; init; }
+
+    public string? Commit { get; init; }
+
+    public string? Version { get; init; }
+
+    public string? Build { get; init; }
+
+    public string? Seed { get; init; }
+
+    public string? Notes { get; init; }
+
+    public IReadOnlyDictionary<string, string> Tags { get; init; } = new Dictionary<string, string>();
+}
+
 internal sealed record TargetConfig
 {
     public string Name { get; init; } = string.Empty;
@@ -72,6 +93,8 @@ internal sealed record TargetConfig
     public Uri BaseUrl { get; init; } = new("http://localhost");
 
     public IReadOnlyDictionary<string, string> Headers { get; init; } = new Dictionary<string, string>();
+
+    public IReadOnlyDictionary<string, string> Tags { get; init; } = new Dictionary<string, string>();
 
     public void Validate()
     {

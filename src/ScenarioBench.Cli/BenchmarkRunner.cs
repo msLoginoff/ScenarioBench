@@ -19,6 +19,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
     public async Task<BenchmarkRunResult> RunAsync()
     {
         var runId = CreateRunId(config.RunName);
+        var startedAt = DateTimeOffset.UtcNow;
         var artifactDirectory = Path.GetFullPath(Path.Combine("artifacts", runId));
         Directory.CreateDirectory(artifactDirectory);
 
@@ -46,7 +47,28 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         var comparisonPath = Path.Combine(artifactDirectory, "comparison.md");
         await ReportWriter.WriteComparisonAsync(config, runId, targetResults, comparisonPath);
 
-        return new BenchmarkRunResult(runId, artifactDirectory, comparisonPath, targetResults);
+        var manifest = new RunManifest(
+            RunId: runId,
+            StartedAt: startedAt,
+            FinishedAt: DateTimeOffset.UtcNow,
+            ConfigPath: Path.GetFullPath(configPath),
+            InfraConfigPath: infraConfigPath is null ? null : Path.GetFullPath(infraConfigPath),
+            ArtifactDirectory: artifactDirectory,
+            RunName: config.RunName,
+            Metadata: config.Metadata,
+            Scenario: new ScenarioManifest(
+                Name: config.Scenario.Name,
+                Method: config.Scenario.Method,
+                Path: config.Scenario.Path,
+                LoadProfile: config.Scenario.GetEffectiveLoadProfile().Describe(),
+                WarmupSeconds: config.Scenario.WarmupSeconds,
+                Thresholds: config.Scenario.Thresholds),
+            Targets: targetResults);
+
+        var manifestPath = Path.Combine(artifactDirectory, "manifest.json");
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest, JsonOptions));
+
+        return new BenchmarkRunResult(runId, artifactDirectory, comparisonPath, manifestPath, targetResults);
     }
 
     private async Task<TargetRunResult> RunTargetAsync(string runId, string artifactDirectory, TargetConfig target)
@@ -95,9 +117,14 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
 
         if (infraConfigPath is not null)
         {
+            var generatedInfraConfigPath = await InfluxInfraConfigWriter.WriteTargetConfigAsync(
+                Path.GetFullPath(infraConfigPath),
+                Path.Combine(artifactDirectory, "infra-config.generated", $"{SanitizeName(target.Name)}.json"),
+                CreateInfluxTags(runId, target));
+
             nbomber = nbomber
                 .WithReportingSinks(new InfluxDBSink())
-                .LoadInfraConfig(Path.GetFullPath(infraConfigPath));
+                .LoadInfraConfig(generatedInfraConfigPath);
         }
 
         var stats = nbomber.Run();
@@ -180,6 +207,42 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         return $"{SanitizeName(runName)}-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}";
     }
 
+    private IReadOnlyDictionary<string, string> CreateInfluxTags(string runId, TargetConfig target)
+    {
+        var tags = new Dictionary<string, string>
+        {
+            ["run_id"] = runId,
+            ["target"] = target.Name
+        };
+
+        AddOptional(tags, "environment", config.Metadata.Environment);
+        AddOptional(tags, "branch", config.Metadata.Branch);
+        AddOptional(tags, "commit", config.Metadata.Commit);
+        AddOptional(tags, "version", config.Metadata.Version);
+        AddOptional(tags, "build", config.Metadata.Build);
+        AddOptional(tags, "seed", config.Metadata.Seed);
+
+        foreach (var (key, value) in config.Metadata.Tags)
+        {
+            AddOptional(tags, key, value);
+        }
+
+        foreach (var (key, value) in target.Tags)
+        {
+            AddOptional(tags, $"target_{key}", value);
+        }
+
+        return tags;
+    }
+
+    private static void AddOptional(IDictionary<string, string> tags, string key, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(key) && !string.IsNullOrWhiteSpace(value))
+        {
+            tags[key] = value;
+        }
+    }
+
     internal static string SanitizeName(string value)
     {
         var builder = new StringBuilder(value.Length);
@@ -198,6 +261,7 @@ internal sealed record BenchmarkRunResult(
     string RunId,
     string ArtifactDirectory,
     string ComparisonReportPath,
+    string ManifestPath,
     IReadOnlyList<TargetRunResult> Targets);
 
 internal sealed record TargetRunResult(
