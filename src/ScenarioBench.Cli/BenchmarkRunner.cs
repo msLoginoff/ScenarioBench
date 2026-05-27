@@ -21,10 +21,18 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
 
     public async Task<BenchmarkRunResult> RunAsync()
     {
+        var scenarioPack = ScenarioPackLoader.Load(config.ScenarioPack, configPath, config.Scenario.Name);
         var runId = CreateRunId(config.RunName);
         var startedAt = DateTimeOffset.UtcNow;
         var artifactDirectory = Path.GetFullPath(Path.Combine("artifacts", runId));
         Directory.CreateDirectory(artifactDirectory);
+        var runContext = CreateRunContext(runId, artifactDirectory);
+
+        if (scenarioPack is not null)
+        {
+            Console.WriteLine(
+                $"Loaded scenario pack '{scenarioPack.Pack.Name}' workflow '{scenarioPack.Workflow.Name}'.");
+        }
 
         File.Copy(configPath, Path.Combine(artifactDirectory, "config.json"), overwrite: true);
         if (infraConfigPath is not null)
@@ -43,7 +51,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         {
             Console.WriteLine($"Running '{config.Scenario.Name}' against target '{target.Name}' ({target.BaseUrl})...");
 
-            var targetResult = await RunTargetAsync(runId, artifactDirectory, target);
+            var targetResult = await RunTargetAsync(runContext, artifactDirectory, target, scenarioPack);
             targetResults.Add(targetResult);
         }
 
@@ -65,7 +73,10 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
                 Path: config.Scenario.Path,
                 LoadProfile: config.Scenario.GetEffectiveLoadProfile().Describe(),
                 WarmupSeconds: config.Scenario.WarmupSeconds,
-                Thresholds: config.Scenario.Thresholds),
+                Thresholds: config.Scenario.Thresholds,
+                ScenarioPack: scenarioPack is null
+                    ? null
+                    : new ScenarioPackManifest(scenarioPack.Pack.Name, scenarioPack.Workflow.Name)),
             Targets: targetResults);
 
         var manifestPath = Path.Combine(artifactDirectory, "manifest.json");
@@ -74,11 +85,27 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         return new BenchmarkRunResult(runId, artifactDirectory, comparisonPath, manifestPath, targetResults);
     }
 
-    private async Task<TargetRunResult> RunTargetAsync(string runId, string artifactDirectory, TargetConfig target)
+    private async Task<TargetRunResult> RunTargetAsync(
+        ScenarioRunContext runContext,
+        string artifactDirectory,
+        TargetConfig target,
+        LoadedScenarioPack? scenarioPack)
     {
         using var httpClient = CreateHttpClient(target);
         var targetDirectory = Path.Combine(artifactDirectory, SanitizeName(target.Name));
         Directory.CreateDirectory(targetDirectory);
+        var targetContext = CreateTargetContext(target);
+
+        if (scenarioPack is not null)
+        {
+            await scenarioPack.Workflow.PrepareAsync(
+                new ScenarioPrepareContext(
+                    runContext,
+                    targetContext,
+                    config.Scenario.Name,
+                    targetDirectory,
+                    scenarioPack.Properties));
+        }
 
         var scenario = Scenario
             .Create(config.Scenario.Name, async context =>
@@ -113,7 +140,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
             .RegisterScenarios(scenario)
             .WithTestSuite(config.RunName)
             .WithTestName($"{config.RunName}/{target.Name}/{config.Scenario.Name}")
-            .WithSessionId($"{runId}-{SanitizeName(target.Name)}")
+            .WithSessionId($"{runContext.RunId}-{SanitizeName(target.Name)}")
             .WithReportFolder(targetDirectory)
             .WithReportFileName("nbomber")
             .WithReportFormats(ReportFormat.Txt, ReportFormat.Md, ReportFormat.Html, ReportFormat.Csv);
@@ -123,7 +150,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
             var generatedInfraConfigPath = await InfluxInfraConfigWriter.WriteTargetConfigAsync(
                 Path.GetFullPath(infraConfigPath),
                 Path.Combine(artifactDirectory, "infra-config.generated", $"{SanitizeName(target.Name)}.json"),
-                CreateInfluxTags(runId, target));
+                CreateInfluxTags(runContext.RunId, target));
 
             nbomber = nbomber
                 .WithReportingSinks(new InfluxDBSink())
@@ -133,6 +160,20 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         var stats = nbomber.Run();
 
         var result = TargetRunResult.FromStats(target, config.Scenario, stats, targetDirectory);
+        if (scenarioPack is not null)
+        {
+            var validationResults = await scenarioPack.Workflow.ValidateAsync(
+                new ScenarioValidationContext(
+                    runContext,
+                    targetContext,
+                    config.Scenario.Name,
+                    targetDirectory,
+                    result.ToScenarioTargetResult(),
+                    scenarioPack.Properties));
+
+            result = result.WithValidationResults(validationResults);
+        }
+
         var resultPath = Path.Combine(targetDirectory, "result.json");
         await File.WriteAllTextAsync(resultPath, JsonSerializer.Serialize(result, JsonOptions));
 
@@ -208,6 +249,32 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
     private static string CreateRunId(string runName)
     {
         return $"{SanitizeName(runName)}-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}";
+    }
+
+    private ScenarioRunContext CreateRunContext(string runId, string artifactDirectory)
+    {
+        return new ScenarioRunContext(
+            RunId: runId,
+            RunName: config.RunName,
+            ArtifactDirectory: artifactDirectory,
+            Metadata: new ScenarioRunMetadata(
+                Environment: config.Metadata.Environment,
+                Branch: config.Metadata.Branch,
+                Commit: config.Metadata.Commit,
+                Version: config.Metadata.Version,
+                Build: config.Metadata.Build,
+                Seed: config.Metadata.Seed,
+                Notes: config.Metadata.Notes,
+                Tags: config.Metadata.Tags));
+    }
+
+    private static ScenarioTargetContext CreateTargetContext(TargetConfig target)
+    {
+        return new ScenarioTargetContext(
+            Name: target.Name,
+            BaseUrl: target.BaseUrl,
+            Headers: target.Headers,
+            Tags: target.Tags);
     }
 
     private IReadOnlyDictionary<string, string> CreateInfluxTags(string runId, TargetConfig target)
@@ -324,6 +391,33 @@ internal sealed record TargetRunResult(
             Passed = failureReasons.Count == 0 && result.ValidationResults.All(validation => validation.Passed),
             FailureReasons = failureReasons
         };
+    }
+
+    public TargetRunResult WithValidationResults(IReadOnlyList<ScenarioValidationResult> validationResults)
+    {
+        return this with
+        {
+            Passed = FailureReasons.Count == 0 && validationResults.All(validation => validation.Passed),
+            ValidationResults = validationResults
+        };
+    }
+
+    public ScenarioTargetResult ToScenarioTargetResult()
+    {
+        return new ScenarioTargetResult(
+            TotalRequests: TotalRequests,
+            OkRequests: OkRequests,
+            FailedRequests: FailedRequests,
+            RequestsPerSecond: RequestsPerSecond,
+            MeanMs: MeanMs,
+            P50Ms: P50Ms,
+            P95Ms: P95Ms,
+            P99Ms: P99Ms,
+            MinMs: MinMs,
+            MaxMs: MaxMs,
+            DurationSeconds: DurationSeconds,
+            ThresholdsPassed: FailureReasons.Count == 0,
+            ThresholdFailureReasons: FailureReasons);
     }
 
     private static IReadOnlyList<string> EvaluateThresholds(TargetRunResult result, ThresholdConfig thresholds)

@@ -21,4 +21,9 @@ internal sealed record ScenarioManifest(
     string Path,
     string LoadProfile,
     int WarmupSeconds,
-    ThresholdConfig Thresholds);
+    ThresholdConfig Thresholds,
+    ScenarioPackManifest? ScenarioPack);
+
+internal sealed record ScenarioPackManifest(
+    string Name,
+    string Workflow);

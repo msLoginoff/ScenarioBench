@@ -1,0 +1,42 @@
+{
+  "runName": "http-smoke-pack",
+  "metadata": {
+    "environment": "local-docker",
+    "branch": "demo",
+    "version": "demo",
+    "seed": "demo"
+  },
+  "targets": [
+    {
+      "name": "local",
+      "baseUrl": "http://127.0.0.1:5002",
+      "tags": {
+        "kind": "demo"
+      }
+    }
+  ],
+  "scenario": {
+    "name": "http-smoke",
+    "method": "GET",
+    "path": "/health",
+    "warmupSeconds": 0,
+    "loadProfile": {
+      "type": "inject",
+      "ratePerSecond": 5,
+      "durationSeconds": 5
+    },
+    "timeoutSeconds": 10,
+    "expectedStatusCodes": [200],
+    "thresholds": {
+      "maxFailedRequests": 0,
+      "maxP95Ms": 1000
+    }
+  },
+  "scenarioPack": {
+    "assemblyPath": "demo-scenario-pack/bin/Debug/net10.0/ScenarioBench.DemoScenarioPack.dll",
+    "workflow": "request-count-validation",
+    "properties": {
+      "minTotalRequests": "1"
+    }
+  }
+}

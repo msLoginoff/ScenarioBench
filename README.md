@@ -163,6 +163,39 @@ root gets `comparison.md`, copied input configs, and `manifest.json`.
 results array. The built-in HTTP scenario does not run private validations yet,
 so this array is empty until a scenario pack is connected.
 
+## Scenario Packs
+
+Scenario packs are external .NET assemblies that reference
+`ScenarioBench.Abstractions` and implement `IScenarioPack`. Configure one with
+`scenarioPack`:
+
+```json
+"scenarioPack": {
+  "assemblyPath": "demo-scenario-pack/bin/Debug/net10.0/ScenarioBench.DemoScenarioPack.dll",
+  "workflow": "request-count-validation",
+  "properties": {
+    "minTotalRequests": "1"
+  }
+}
+```
+
+`assemblyPath` is resolved relative to the benchmark config file. If the
+assembly contains more than one `IScenarioPack` implementation, set `typeName`.
+If the pack exposes multiple workflows, set `workflow`.
+
+The public demo pack proves the loading and validation path:
+
+```bash
+dotnet build ScenarioBench.sln --no-restore -m:1 -v:minimal
+
+dotnet run --project src/ScenarioBench.Cli -- \
+  --config examples/http-smoke-with-pack.json
+```
+
+The private Unicorn adapter should follow the same shape but keep auth,
+endpoint paths, payloads, seed logic, and audit/database checks in the private
+repository.
+
 ## Example Config
 
 ```json

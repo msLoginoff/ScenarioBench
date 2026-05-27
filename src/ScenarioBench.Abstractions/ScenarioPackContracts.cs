@@ -12,10 +12,10 @@ public interface IScenarioWorkflow
     string Name { get; }
 
     ValueTask PrepareAsync(
-        ScenarioTargetContext target,
+        ScenarioPrepareContext context,
         CancellationToken cancellationToken = default);
 
-    ValueTask<ScenarioValidationResult> ValidateAsync(
+    ValueTask<IReadOnlyList<ScenarioValidationResult>> ValidateAsync(
         ScenarioValidationContext context,
         CancellationToken cancellationToken = default);
 }
@@ -42,9 +42,32 @@ public sealed record ScenarioTargetContext(
     IReadOnlyDictionary<string, string> Headers,
     IReadOnlyDictionary<string, string> Tags);
 
-public sealed record ScenarioValidationContext(
+public sealed record ScenarioPrepareContext(
     ScenarioRunContext Run,
     ScenarioTargetContext Target,
     string ScenarioName,
     string TargetArtifactDirectory,
     IReadOnlyDictionary<string, string> Properties);
+
+public sealed record ScenarioValidationContext(
+    ScenarioRunContext Run,
+    ScenarioTargetContext Target,
+    string ScenarioName,
+    string TargetArtifactDirectory,
+    ScenarioTargetResult TargetResult,
+    IReadOnlyDictionary<string, string> Properties);
+
+public sealed record ScenarioTargetResult(
+    int TotalRequests,
+    int OkRequests,
+    int FailedRequests,
+    double RequestsPerSecond,
+    double MeanMs,
+    double P50Ms,
+    double P95Ms,
+    double P99Ms,
+    double MinMs,
+    double MaxMs,
+    double DurationSeconds,
+    bool ThresholdsPassed,
+    IReadOnlyList<string> ThresholdFailureReasons);

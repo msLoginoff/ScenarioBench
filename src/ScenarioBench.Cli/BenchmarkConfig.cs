@@ -18,6 +18,8 @@ internal sealed record BenchmarkConfig
 
     public ScenarioConfig Scenario { get; init; } = new();
 
+    public ScenarioPackConfig? ScenarioPack { get; init; }
+
     public static async Task<BenchmarkConfig> LoadAsync(string path)
     {
         if (!File.Exists(path))
@@ -64,6 +66,7 @@ internal sealed record BenchmarkConfig
         }
 
         Scenario.Validate();
+        ScenarioPack?.Validate();
     }
 }
 
@@ -106,6 +109,25 @@ internal sealed record TargetConfig
         if (!BaseUrl.IsAbsoluteUri)
         {
             throw new InvalidOperationException($"Target '{Name}' baseUrl must be an absolute URL.");
+        }
+    }
+}
+
+internal sealed record ScenarioPackConfig
+{
+    public string AssemblyPath { get; init; } = string.Empty;
+
+    public string? TypeName { get; init; }
+
+    public string? Workflow { get; init; }
+
+    public IReadOnlyDictionary<string, string> Properties { get; init; } = new Dictionary<string, string>();
+
+    public void Validate()
+    {
+        if (string.IsNullOrWhiteSpace(AssemblyPath))
+        {
+            throw new InvalidOperationException("Scenario pack field 'assemblyPath' is required when scenarioPack is configured.");
         }
     }
 }

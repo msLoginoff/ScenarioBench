@@ -35,14 +35,14 @@ internal static class ReportWriter
                     $"| {target.TargetName} | {(target.Passed ? "PASS" : "FAIL")} | {target.TotalRequests} | {target.OkRequests} | {target.FailedRequests} | {target.RequestsPerSecond:F2} | {target.MeanMs:F2} | {target.P50Ms:F2} | {target.P95Ms:F2} | {target.P99Ms:F2} | {target.MaxMs:F2} |"));
         }
 
-        var failedTargets = targets.Where(target => !target.Passed).ToArray();
-        if (failedTargets.Length > 0)
+        var thresholdFailedTargets = targets.Where(target => target.FailureReasons.Count > 0).ToArray();
+        if (thresholdFailedTargets.Length > 0)
         {
             builder.AppendLine();
             builder.AppendLine("## Failed Thresholds");
             builder.AppendLine();
 
-            foreach (var target in failedTargets)
+            foreach (var target in thresholdFailedTargets)
             {
                 builder.AppendLine($"### {target.TargetName}");
                 builder.AppendLine();
@@ -74,6 +74,33 @@ internal static class ReportWriter
                 {
                     builder.AppendLine(
                         $"| {target.TargetName} | {validation.Name} | {validation.Status} | {validation.Issues.Count} |");
+                }
+            }
+
+            var validationsWithIssues = targetsWithValidation
+                .SelectMany(target => target.ValidationResults.Select(validation => new { target.TargetName, Validation = validation }))
+                .Where(item => item.Validation.Issues.Count > 0)
+                .ToArray();
+
+            if (validationsWithIssues.Length > 0)
+            {
+                builder.AppendLine();
+                builder.AppendLine("### Validation Issues");
+                builder.AppendLine();
+
+                foreach (var item in validationsWithIssues)
+                {
+                    builder.AppendLine($"#### {item.TargetName} / {item.Validation.Name}");
+                    builder.AppendLine();
+
+                    foreach (var issue in item.Validation.Issues)
+                    {
+                        var code = string.IsNullOrWhiteSpace(issue.Code) ? string.Empty : $" `{issue.Code}`";
+                        var issuePath = string.IsNullOrWhiteSpace(issue.Path) ? string.Empty : $" `{issue.Path}`";
+                        builder.AppendLine($"- {issue.Severity}{code}{issuePath}: {issue.Message}");
+                    }
+
+                    builder.AppendLine();
                 }
             }
         }

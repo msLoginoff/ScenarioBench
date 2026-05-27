@@ -265,8 +265,37 @@ It defines:
   correctness results.
 
 The CLI already carries validation results through `result.json`,
-`manifest.json`, and `comparison.md`. The built-in HTTP scenario currently has
-no private validation hook wired, so its validation array is empty.
+`manifest.json`, and `comparison.md`.
+
+Configure a pack in JSON:
+
+```json
+"scenarioPack": {
+  "assemblyPath": "demo-scenario-pack/bin/Debug/net10.0/ScenarioBench.DemoScenarioPack.dll",
+  "workflow": "request-count-validation",
+  "properties": {
+    "minTotalRequests": "1"
+  }
+}
+```
+
+`assemblyPath` is relative to the config file unless it is absolute.
+`typeName` is optional when the assembly has exactly one public
+`IScenarioPack`. `workflow` is optional when the pack has exactly one workflow
+or a workflow with the same name as `scenario.name`.
+
+Pack execution order per target:
+
+1. Build run and target context.
+2. Call `IScenarioWorkflow.PrepareAsync(...)`.
+3. Run the configured NBomber HTTP scenario.
+4. Call `IScenarioWorkflow.ValidateAsync(...)` with the target performance
+   summary and artifact paths.
+5. Write validation results into `result.json`, `manifest.json`, and
+   `comparison.md`.
+
+The public `examples/demo-scenario-pack` validates only generic request count.
+It exists to prove the extension path before a private adapter is created.
 
 Private adapters should keep auth, seed data, endpoint paths, business payloads,
 and audit/database checks outside this public repository.
