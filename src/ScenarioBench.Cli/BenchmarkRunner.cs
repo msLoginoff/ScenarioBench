@@ -2,10 +2,12 @@ using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using NBomber.Contracts;
 using NBomber.Contracts.Stats;
 using NBomber.CSharp;
 using NBomber.Sinks.InfluxDB;
+using ScenarioBench.Abstractions;
 
 namespace ScenarioBench.Cli;
 
@@ -13,7 +15,8 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
-        WriteIndented = true
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() }
     };
 
     public async Task<BenchmarkRunResult> RunAsync()
@@ -281,7 +284,8 @@ internal sealed record TargetRunResult(
     double MaxMs,
     double DurationSeconds,
     bool Passed,
-    IReadOnlyList<string> FailureReasons)
+    IReadOnlyList<string> FailureReasons,
+    IReadOnlyList<ScenarioValidationResult> ValidationResults)
 {
     public static TargetRunResult FromStats(
         TargetConfig target,
@@ -311,12 +315,13 @@ internal sealed record TargetRunResult(
             MaxMs: requestStep.Ok.Latency.MaxMs,
             DurationSeconds: scenario.Duration.TotalSeconds,
             Passed: true,
-            FailureReasons: []);
+            FailureReasons: [],
+            ValidationResults: []);
 
         var failureReasons = EvaluateThresholds(result, scenarioConfig.Thresholds);
         return result with
         {
-            Passed = failureReasons.Count == 0,
+            Passed = failureReasons.Count == 0 && result.ValidationResults.All(validation => validation.Passed),
             FailureReasons = failureReasons
         };
     }

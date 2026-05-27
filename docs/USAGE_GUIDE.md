@@ -243,13 +243,33 @@ artifacts/<run-id>/<target>/result.json
 
 `manifest.json` is the machine-readable run summary. It contains the run id,
 timestamps, config paths, metadata, scenario, thresholds, every target result,
-and the final pass/fail status.
+validation results, and the final pass/fail status.
 
 Example:
 
 ```text
 http-smoke/local/http-smoke
 ```
+
+## Scenario Pack Contract
+
+The public extension boundary is `ScenarioBench.Abstractions`.
+
+It defines:
+
+- `IScenarioPack`: a named pack of workflows;
+- `IScenarioWorkflow`: prepare and validate hooks for a workflow;
+- `ScenarioRunContext` and `ScenarioTargetContext`: public-safe run/target
+  inputs;
+- `ScenarioValidationResult` and `ValidationIssue`: machine-readable
+  correctness results.
+
+The CLI already carries validation results through `result.json`,
+`manifest.json`, and `comparison.md`. The built-in HTTP scenario currently has
+no private validation hook wired, so its validation array is empty.
+
+Private adapters should keep auth, seed data, endpoint paths, business payloads,
+and audit/database checks outside this public repository.
 
 ## Metrics Glossary
 
@@ -305,6 +325,7 @@ This is not yet enough for a strong production-grade performance conclusion.
 For serious application benchmarking, add:
 
 - richer scenario definitions, not only one HTTP request;
+- loading private scenario packs;
 - constant load, stress, spike, and soak profiles;
 - per-target scenario params, for example old/new URLs and auth;
 - authentication and token refresh support;

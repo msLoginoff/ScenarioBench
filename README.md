@@ -11,6 +11,8 @@ Markdown comparison report.
 
 ScenarioBench has two separate parts:
 
+- contract: `ScenarioBench.Abstractions`, public interfaces and DTOs for
+  private scenario packs and validation results;
 - runner: `ScenarioBench.Cli`, the load generator that runs on the host;
 - target: the system under test, normally a Docker/Compose stack.
 
@@ -156,6 +158,10 @@ artifacts/<run-id>/
 
 Each target gets its own NBomber reports and normalized `result.json`. The run
 root gets `comparison.md`, copied input configs, and `manifest.json`.
+
+`manifest.json` includes each target's performance summary and a validation
+results array. The built-in HTTP scenario does not run private validations yet,
+so this array is empty until a scenario pack is connected.
 
 ## Example Config
 
@@ -369,8 +375,11 @@ This public repo should stay generic and public-safe. It should not contain
 private endpoint paths, auth details, secrets, database schemas, operational
 details, or real Unicorn payloads.
 
-Unicorn-specific scenarios, auth, seed data, Docker overrides, and audit
-validation belong in a future private scenario adapter repository.
+`ScenarioBench.Abstractions` is the public contract for that private side. It
+defines scenario pack/workflow interfaces, target/run context records, and
+validation result DTOs. Unicorn-specific scenarios, auth, seed data, Docker
+overrides, and audit validation belong in a private scenario adapter repository
+that references those abstractions.
 
 ## Contributing
 

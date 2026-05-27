@@ -56,6 +56,28 @@ internal static class ReportWriter
             }
         }
 
+        var targetsWithValidation = targets
+            .Where(target => target.ValidationResults.Count > 0)
+            .ToArray();
+
+        if (targetsWithValidation.Length > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine("## Validation Results");
+            builder.AppendLine();
+            builder.AppendLine("| Target | Validation | Status | Issues |");
+            builder.AppendLine("| --- | --- | --- | ---: |");
+
+            foreach (var target in targetsWithValidation)
+            {
+                foreach (var validation in target.ValidationResults)
+                {
+                    builder.AppendLine(
+                        $"| {target.TargetName} | {validation.Name} | {validation.Status} | {validation.Issues.Count} |");
+                }
+            }
+        }
+
         var baseline = targets.FirstOrDefault();
         if (baseline is not null && targets.Count > 1)
         {

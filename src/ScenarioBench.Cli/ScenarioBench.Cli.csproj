@@ -12,4 +12,8 @@
     <PackageReference Include="NBomber.Sinks.InfluxDB" Version="6.1.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\ScenarioBench.Abstractions\ScenarioBench.Abstractions.csproj" />
+  </ItemGroup>
+
 </Project>
