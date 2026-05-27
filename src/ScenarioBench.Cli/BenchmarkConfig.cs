@@ -136,6 +136,10 @@ internal sealed record ScenarioConfig
 {
     public string Name { get; init; } = "http-smoke";
 
+    public string Driver { get; init; } = ScenarioDrivers.Http;
+
+    public string? StepName { get; init; }
+
     public string Method { get; init; } = "GET";
 
     public string Path { get; init; } = "/";
@@ -165,6 +169,12 @@ internal sealed record ScenarioConfig
         if (string.IsNullOrWhiteSpace(Name))
         {
             throw new InvalidOperationException("Scenario name is required.");
+        }
+
+        if (Driver is not ScenarioDrivers.Http and not ScenarioDrivers.Workflow)
+        {
+            throw new InvalidOperationException(
+                $"Unsupported scenario driver '{Driver}'. Supported values: http, workflow.");
         }
 
         if (string.IsNullOrWhiteSpace(Method))
@@ -214,6 +224,22 @@ internal sealed record ScenarioConfig
             DurationSeconds = DurationSeconds
         };
     }
+
+    public string GetStepName()
+    {
+        if (!string.IsNullOrWhiteSpace(StepName))
+        {
+            return StepName;
+        }
+
+        return Driver == ScenarioDrivers.Workflow ? "workflow" : "request";
+    }
+}
+
+internal static class ScenarioDrivers
+{
+    public const string Http = "http";
+    public const string Workflow = "workflow";
 }
 
 internal static class LoadProfileTypes

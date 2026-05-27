@@ -18,6 +18,8 @@ internal static class ReportWriter
         builder.AppendLine($"- Run ID: `{runId}`");
         AppendMetadata(builder, config.Metadata);
         builder.AppendLine($"- Scenario: `{config.Scenario.Name}`");
+        builder.AppendLine($"- Driver: `{config.Scenario.Driver}`");
+        builder.AppendLine($"- Step: `{config.Scenario.GetStepName()}`");
         builder.AppendLine($"- Method: `{config.Scenario.Method}`");
         builder.AppendLine($"- Path: `{config.Scenario.Path}`");
         builder.AppendLine($"- Load profile: `{config.Scenario.GetEffectiveLoadProfile().Describe()}`");

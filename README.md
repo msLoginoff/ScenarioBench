@@ -3,9 +3,9 @@
 ScenarioBench is a small generic benchmark runner for comparing the same
 scenario across one or more target versions of a system.
 
-The first MVP uses NBomber and a JSON config to run a simple HTTP scenario
-against each configured target, then writes NBomber artifacts plus a normalized
-Markdown comparison report.
+It uses NBomber and a JSON config to run either a built-in HTTP scenario or a
+scenario-pack workflow against each configured target, then writes NBomber
+artifacts plus normalized JSON and Markdown reports.
 
 ## Physical Model
 
@@ -166,8 +166,16 @@ so this array is empty until a scenario pack is connected.
 ## Scenario Packs
 
 Scenario packs are external .NET assemblies that reference
-`ScenarioBench.Abstractions` and implement `IScenarioPack`. Configure one with
-`scenarioPack`:
+`ScenarioBench.Abstractions` and implement `IScenarioPack`. They can be used in
+two ways:
+
+- validation-only: keep `scenario.driver` as `http`, run the built-in HTTP
+  request, then validate with `IScenarioWorkflow.ValidateAsync(...)`;
+- load workflow: set `scenario.driver` to `workflow` and implement
+  `IScenarioLoadWorkflow.ExecuteAsync(...)` so the pack owns each load
+  iteration.
+
+Configure one with `scenarioPack`:
 
 ```json
 "scenarioPack": {
@@ -191,6 +199,16 @@ dotnet build ScenarioBench.sln --no-restore -m:1 -v:minimal
 dotnet run --project src/ScenarioBench.Cli -- \
   --config examples/http-smoke-with-pack.json
 ```
+
+It also includes a multi-step workflow example:
+
+```bash
+dotnet run --project src/ScenarioBench.Cli -- \
+  --config examples/http-workflow-with-pack.json
+```
+
+That config uses `scenario.driver = "workflow"` and the demo pack executes
+`/health` and `/work` inside one measured NBomber iteration.
 
 The private Unicorn adapter should follow the same shape but keep auth,
 endpoint paths, payloads, seed logic, and audit/database checks in the private
@@ -218,6 +236,7 @@ repository.
   ],
   "scenario": {
     "name": "http-smoke",
+    "driver": "http",
     "method": "GET",
     "path": "/health",
     "warmupSeconds": 0,

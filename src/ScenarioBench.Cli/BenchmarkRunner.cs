@@ -22,6 +22,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
     public async Task<BenchmarkRunResult> RunAsync()
     {
         var scenarioPack = ScenarioPackLoader.Load(config.ScenarioPack, configPath, config.Scenario.Name);
+        ValidateScenarioDriver(scenarioPack);
         var runId = CreateRunId(config.RunName);
         var startedAt = DateTimeOffset.UtcNow;
         var artifactDirectory = Path.GetFullPath(Path.Combine("artifacts", runId));
@@ -69,6 +70,8 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
             Metadata: config.Metadata,
             Scenario: new ScenarioManifest(
                 Name: config.Scenario.Name,
+                Driver: config.Scenario.Driver,
+                StepName: config.Scenario.GetStepName(),
                 Method: config.Scenario.Method,
                 Path: config.Scenario.Path,
                 LoadProfile: config.Scenario.GetEffectiveLoadProfile().Describe(),
@@ -85,13 +88,32 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         return new BenchmarkRunResult(runId, artifactDirectory, comparisonPath, manifestPath, targetResults);
     }
 
+    private void ValidateScenarioDriver(LoadedScenarioPack? scenarioPack)
+    {
+        if (config.Scenario.Driver != ScenarioDrivers.Workflow)
+        {
+            return;
+        }
+
+        if (scenarioPack is null)
+        {
+            throw new InvalidOperationException("Scenario driver 'workflow' requires scenarioPack configuration.");
+        }
+
+        if (scenarioPack.Workflow is not IScenarioLoadWorkflow)
+        {
+            throw new InvalidOperationException(
+                $"Scenario pack workflow '{scenarioPack.Workflow.Name}' must implement {nameof(IScenarioLoadWorkflow)} when scenario.driver is 'workflow'.");
+        }
+    }
+
     private async Task<TargetRunResult> RunTargetAsync(
         ScenarioRunContext runContext,
         string artifactDirectory,
         TargetConfig target,
         LoadedScenarioPack? scenarioPack)
     {
-        using var httpClient = CreateHttpClient(target);
+        using var httpClient = config.Scenario.Driver == ScenarioDrivers.Http ? CreateHttpClient(target) : null;
         var targetDirectory = Path.Combine(artifactDirectory, SanitizeName(target.Name));
         Directory.CreateDirectory(targetDirectory);
         var targetContext = CreateTargetContext(target);
@@ -107,29 +129,19 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
                     scenarioPack.Properties));
         }
 
+        long workflowIteration = 0;
         var scenario = Scenario
             .Create(config.Scenario.Name, async context =>
-                await Step.Run("request", context, async () =>
-                {
-                    using var request = CreateRequest(target);
-                    using var response = await httpClient.SendAsync(
-                        request,
-                        HttpCompletionOption.ResponseHeadersRead,
-                        context.ScenarioCancellationToken);
-
-                    var statusCode = (int)response.StatusCode;
-                    var sizeBytes = response.Content.Headers.ContentLength ?? 0;
-
-                    if (config.Scenario.ExpectedStatusCodes.Contains(statusCode))
-                    {
-                        return Response.Ok(statusCode: statusCode.ToString(CultureInfo.InvariantCulture), sizeBytes: sizeBytes);
-                    }
-
-                    return Response.Fail(
-                        statusCode: statusCode.ToString(CultureInfo.InvariantCulture),
-                        message: $"Unexpected status code: {statusCode}",
-                        sizeBytes: sizeBytes);
-                }))
+                await Step.Run(config.Scenario.GetStepName(), context, async () =>
+                    config.Scenario.Driver == ScenarioDrivers.Workflow
+                        ? await ExecuteWorkflowStepAsync(
+                            runContext,
+                            targetContext,
+                            targetDirectory,
+                            scenarioPack!,
+                            Interlocked.Increment(ref workflowIteration),
+                            context.ScenarioCancellationToken)
+                        : await ExecuteHttpStepAsync(httpClient!, target, context.ScenarioCancellationToken)))
             .WithLoadSimulations(CreateLoadSimulation(config.Scenario.GetEffectiveLoadProfile()));
 
         scenario = config.Scenario.WarmupSeconds > 0
@@ -178,6 +190,55 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         await File.WriteAllTextAsync(resultPath, JsonSerializer.Serialize(result, JsonOptions));
 
         return result;
+    }
+
+    private async Task<Response<object>> ExecuteHttpStepAsync(
+        HttpClient httpClient,
+        TargetConfig target,
+        CancellationToken cancellationToken)
+    {
+        using var request = CreateRequest(target);
+        using var response = await httpClient.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+
+        var statusCode = (int)response.StatusCode;
+        var sizeBytes = response.Content.Headers.ContentLength ?? 0;
+
+        if (config.Scenario.ExpectedStatusCodes.Contains(statusCode))
+        {
+            return Response.Ok(statusCode: statusCode.ToString(CultureInfo.InvariantCulture), sizeBytes: sizeBytes);
+        }
+
+        return Response.Fail(
+            statusCode: statusCode.ToString(CultureInfo.InvariantCulture),
+            message: $"Unexpected status code: {statusCode}",
+            sizeBytes: sizeBytes);
+    }
+
+    private async Task<Response<object>> ExecuteWorkflowStepAsync(
+        ScenarioRunContext runContext,
+        ScenarioTargetContext targetContext,
+        string targetDirectory,
+        LoadedScenarioPack scenarioPack,
+        long iteration,
+        CancellationToken cancellationToken)
+    {
+        var loadWorkflow = (IScenarioLoadWorkflow)scenarioPack.Workflow;
+        var result = await loadWorkflow.ExecuteAsync(
+            new ScenarioExecutionContext(
+                runContext,
+                targetContext,
+                config.Scenario.Name,
+                iteration,
+                targetDirectory,
+                scenarioPack.Properties),
+            cancellationToken);
+
+        return result.IsOk
+            ? Response.Ok(statusCode: result.StatusCode, sizeBytes: result.SizeBytes)
+            : Response.Fail(statusCode: result.StatusCode, message: result.Message, sizeBytes: result.SizeBytes);
     }
 
     private HttpClient CreateHttpClient(TargetConfig target)
@@ -361,7 +422,7 @@ internal sealed record TargetRunResult(
         string artifactDirectory)
     {
         var scenario = stats.ScenarioStats.Single(stats => stats.ScenarioName == scenarioConfig.Name);
-        var requestStep = scenario.StepStats.Single(stats => stats.StepName == "request");
+        var requestStep = scenario.StepStats.Single(stats => stats.StepName == scenarioConfig.GetStepName());
         var okRequests = requestStep.Ok.Request.Count;
         var failedRequests = requestStep.Fail.Request.Count;
 

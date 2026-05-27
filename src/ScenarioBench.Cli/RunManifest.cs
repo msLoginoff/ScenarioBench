@@ -17,6 +17,8 @@ internal sealed record RunManifest(
 
 internal sealed record ScenarioManifest(
     string Name,
+    string Driver,
+    string StepName,
     string Method,
     string Path,
     string LoadProfile,

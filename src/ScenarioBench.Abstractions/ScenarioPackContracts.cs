@@ -20,6 +20,13 @@ public interface IScenarioWorkflow
         CancellationToken cancellationToken = default);
 }
 
+public interface IScenarioLoadWorkflow : IScenarioWorkflow
+{
+    ValueTask<ScenarioStepResult> ExecuteAsync(
+        ScenarioExecutionContext context,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed record ScenarioRunContext(
     string RunId,
     string RunName,
@@ -49,6 +56,14 @@ public sealed record ScenarioPrepareContext(
     string TargetArtifactDirectory,
     IReadOnlyDictionary<string, string> Properties);
 
+public sealed record ScenarioExecutionContext(
+    ScenarioRunContext Run,
+    ScenarioTargetContext Target,
+    string ScenarioName,
+    long Iteration,
+    string TargetArtifactDirectory,
+    IReadOnlyDictionary<string, string> Properties);
+
 public sealed record ScenarioValidationContext(
     ScenarioRunContext Run,
     ScenarioTargetContext Target,
@@ -71,3 +86,32 @@ public sealed record ScenarioTargetResult(
     double DurationSeconds,
     bool ThresholdsPassed,
     IReadOnlyList<string> ThresholdFailureReasons);
+
+public sealed record ScenarioStepResult(
+    bool IsOk,
+    string? StatusCode = null,
+    string? Message = null,
+    long SizeBytes = 0)
+{
+    public static ScenarioStepResult Ok(
+        string? statusCode = null,
+        long sizeBytes = 0)
+    {
+        return new ScenarioStepResult(
+            IsOk: true,
+            StatusCode: statusCode,
+            SizeBytes: sizeBytes);
+    }
+
+    public static ScenarioStepResult Fail(
+        string? statusCode = null,
+        string? message = null,
+        long sizeBytes = 0)
+    {
+        return new ScenarioStepResult(
+            IsOk: false,
+            StatusCode: statusCode,
+            Message: message,
+            SizeBytes: sizeBytes);
+    }
+}

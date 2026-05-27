@@ -259,6 +259,8 @@ It defines:
 
 - `IScenarioPack`: a named pack of workflows;
 - `IScenarioWorkflow`: prepare and validate hooks for a workflow;
+- `IScenarioLoadWorkflow`: optional load hook for pack-owned workflow
+  iterations;
 - `ScenarioRunContext` and `ScenarioTargetContext`: public-safe run/target
   inputs;
 - `ScenarioValidationResult` and `ValidationIssue`: machine-readable
@@ -288,14 +290,27 @@ Pack execution order per target:
 
 1. Build run and target context.
 2. Call `IScenarioWorkflow.PrepareAsync(...)`.
-3. Run the configured NBomber HTTP scenario.
+3. Run the configured NBomber scenario.
 4. Call `IScenarioWorkflow.ValidateAsync(...)` with the target performance
    summary and artifact paths.
 5. Write validation results into `result.json`, `manifest.json`, and
    `comparison.md`.
 
-The public `examples/demo-scenario-pack` validates only generic request count.
-It exists to prove the extension path before a private adapter is created.
+There are two scenario drivers:
+
+- `http`: ScenarioBench sends one configured HTTP request per NBomber
+  iteration, and the pack is used for prepare/validate only;
+- `workflow`: the selected workflow must implement `IScenarioLoadWorkflow`, and
+  ScenarioBench measures whatever the pack does inside `ExecuteAsync(...)`.
+
+Use `workflow` for multi-step flows, dynamic ids, token refresh, mixed
+endpoint calls, unique payloads, and business-level audit validation.
+`ScenarioExecutionContext.Iteration` is a per-target monotonic number that
+private adapters can use for unique payloads or idempotency keys.
+
+The public `examples/demo-scenario-pack` includes both a validation-only
+workflow and a multi-step load workflow. It exists to prove the extension path
+before a private adapter is created.
 
 Private adapters should keep auth, seed data, endpoint paths, business payloads,
 and audit/database checks outside this public repository.
@@ -343,6 +358,7 @@ The current stack is enough for:
 - proving the runner works;
 - basic smoke and baseline tests;
 - comparing two targets by latency/RPS/errors;
+- running private multi-step C# workflow scenarios through scenario packs;
 - storing time-series metrics;
 - showing demo dashboards in Grafana;
 - keeping local Markdown/JSON artifacts.
@@ -353,8 +369,6 @@ This is not yet enough for a strong production-grade performance conclusion.
 
 For serious application benchmarking, add:
 
-- richer scenario definitions, not only one HTTP request;
-- loading private scenario packs;
 - constant load, stress, spike, and soak profiles;
 - per-target scenario params, for example old/new URLs and auth;
 - authentication and token refresh support;
