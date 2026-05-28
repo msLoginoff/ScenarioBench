@@ -20,7 +20,7 @@ internal static class InfluxMetricsCleaner
 
         var config = await LoadConfigAsync(infraConfigPath);
         var query = options.ClearAll
-            ? $"DROP MEASUREMENT {QuoteIdentifier(config.Measurement)}"
+            ? $"DELETE FROM {QuoteIdentifier(config.Measurement)}"
             : $"DELETE FROM {QuoteIdentifier(config.Measurement)} WHERE {QuoteIdentifier("suite_id")} = {QuoteString(options.SuiteId!)}";
 
         using var httpClient = new HttpClient
