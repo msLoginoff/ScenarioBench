@@ -137,6 +137,23 @@ Remove observability containers and stored dashboard/metric data:
 docker compose -f examples/docker-compose.observability.yml down -v
 ```
 
+Or keep containers/volumes and delete only ScenarioBench metrics through the
+CLI:
+
+```bash
+dotnet run --project src/ScenarioBench.Cli -- \
+  --infra-config examples/infra/influxdb.json \
+  --clear-metrics
+```
+
+Delete one suite/run from Grafana history by `suite_id`:
+
+```bash
+dotnet run --project src/ScenarioBench.Cli -- \
+  --infra-config examples/infra/influxdb.json \
+  --clear-suite http-workflow-suite-20260528-100152
+```
+
 ## Run Benchmark
 
 ```bash

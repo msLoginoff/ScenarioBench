@@ -18,6 +18,12 @@ if (options.Error is not null)
 
 try
 {
+    if (options.MetricsCleanup is not null)
+    {
+        await InfluxMetricsCleaner.ClearAsync(options.InfraConfigPath!, options.MetricsCleanup);
+        return 0;
+    }
+
     var config = await BenchmarkConfig.LoadAsync(options.ConfigPath);
     if (options.ListScenarios)
     {

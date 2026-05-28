@@ -51,6 +51,22 @@ docker compose -f examples/docker-compose.demo.yml down
 docker compose -f examples/docker-compose.observability.yml down
 ```
 
+Clear all metrics from InfluxDB without deleting Docker volumes:
+
+```bash
+dotnet run --project src/ScenarioBench.Cli -- \
+  --infra-config examples/infra/influxdb.json \
+  --clear-metrics
+```
+
+Clear one suite/run from Grafana history:
+
+```bash
+dotnet run --project src/ScenarioBench.Cli -- \
+  --infra-config examples/infra/influxdb.json \
+  --clear-suite http-workflow-suite-20260528-100152
+```
+
 ## What You Can Change In Grafana
 
 Grafana is for inspection and visualization.
