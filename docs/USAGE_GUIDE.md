@@ -198,14 +198,15 @@ Grafana comparison works differently:
 
 1. Run benchmark with `--infra-config`.
 2. Open dashboard.
-3. Select the concrete benchmark in `Run`.
+3. Select the concrete benchmark in `Suite`.
 4. Select the scenario in `Scenario`.
 5. Select `old` in `Target A`.
 6. Select `new` in `Target B`.
-7. Select `request` in `Step`.
+7. Select `request` in `Step` for built-in HTTP scenarios, or `workflow` for
+   scenario-pack workflows.
 8. Set time range to cover the run, for example last 30 minutes.
 
-The `Run` value looks like:
+The `Suite` value looks like:
 
 ```text
 http-compare-20260522-122358
@@ -213,6 +214,20 @@ http-compare-20260522-122358
 
 The target values are the names from config, for example `old`, `new`, or
 `local`.
+
+The provisioned dashboard is organized for old/new inspection:
+
+- `Recent Suites`: quick scan of recent suite/scenario/target/step
+  combinations;
+- `Target Comparison`: selected target A/B table with request, failure,
+  throughput, and latency percentile columns;
+- `RPS Delta B vs A` and `P95 Delta B vs A`: compact percentage deltas;
+- `Latency Overlay`: A/B p50/p95/p99 on one chart;
+- `RPS Overlay` and `Failure RPS Overlay`: A/B request-rate charts.
+
+Validation results are not in InfluxDB yet. Use local `manifest.json`,
+`comparison.md`, and `<target>/result.json` for audit/business correctness
+status.
 
 ## Run Metadata And Artifacts
 
@@ -241,9 +256,36 @@ artifacts/<run-id>/comparison.md
 artifacts/<run-id>/<target>/result.json
 ```
 
-`manifest.json` is the machine-readable run summary. It contains the run id,
-timestamps, config paths, metadata, scenario, thresholds, every target result,
-validation results, and the final pass/fail status.
+`manifest.json` is the machine-readable run summary. It contains the suite/run
+id, timestamps, config paths, metadata, scenarios, thresholds, every target
+result, validation results, and the final pass/fail status.
+
+Use `scenario` for a legacy single-scenario config. Use `scenarios` when one
+suite should run multiple scenarios under the same run id:
+
+```json
+"scenarios": [
+  {
+    "name": "patient-audit-hot-flow",
+    "driver": "workflow",
+    "workflow": "patient-audit-hot-flow"
+  },
+  {
+    "name": "clinical-audit-flow",
+    "driver": "workflow",
+    "workflow": "clinical-audit-flow"
+  }
+]
+```
+
+For multi-scenario configs, target artifacts are nested as:
+
+```text
+artifacts/<suite-id>/<scenario>/<target>/result.json
+```
+
+InfluxDB gets both `suite_id` and `run_id` tags with the same value for new
+runs. Dashboards use `suite_id`.
 
 Example:
 

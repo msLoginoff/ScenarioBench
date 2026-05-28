@@ -6,15 +6,13 @@ namespace ScenarioBench.Cli;
 
 internal sealed record LoadedScenarioPack(
     IScenarioPack Pack,
-    IScenarioWorkflow Workflow,
     IReadOnlyDictionary<string, string> Properties);
 
 internal static class ScenarioPackLoader
 {
     public static LoadedScenarioPack? Load(
         ScenarioPackConfig? config,
-        string configPath,
-        string scenarioName)
+        string configPath)
     {
         if (config is null)
         {
@@ -30,9 +28,16 @@ internal static class ScenarioPackLoader
         var loadContext = new ScenarioPackLoadContext(assemblyPath);
         var assembly = loadContext.LoadFromAssemblyPath(assemblyPath);
         var pack = CreatePack(assembly, config.TypeName);
-        var workflow = SelectWorkflow(pack, config.Workflow, scenarioName);
 
-        return new LoadedScenarioPack(pack, workflow, config.Properties);
+        return new LoadedScenarioPack(pack, config.Properties);
+    }
+
+    public static IScenarioWorkflow SelectWorkflow(
+        LoadedScenarioPack pack,
+        ScenarioPackConfig config,
+        ScenarioConfig scenario)
+    {
+        return SelectWorkflow(pack.Pack, scenario.Workflow ?? config.Workflow, scenario.Name);
     }
 
     private static string ResolvePath(string path, string configDirectory)

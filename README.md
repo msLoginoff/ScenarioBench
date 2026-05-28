@@ -3,9 +3,10 @@
 ScenarioBench is a small generic benchmark runner for comparing the same
 scenario across one or more target versions of a system.
 
-It uses NBomber and a JSON config to run either a built-in HTTP scenario or a
-scenario-pack workflow against each configured target, then writes NBomber
-artifacts plus normalized JSON and Markdown reports.
+It uses NBomber and a JSON config to run one or more scenarios against each
+configured target. A scenario can be either a built-in HTTP request or a
+scenario-pack workflow. ScenarioBench writes NBomber artifacts plus normalized
+JSON and Markdown reports.
 
 ## Physical Model
 
@@ -163,6 +164,10 @@ root gets `comparison.md`, copied input configs, and `manifest.json`.
 results array. The built-in HTTP scenario does not run private validations yet,
 so this array is empty until a scenario pack is connected.
 
+A config can contain either the legacy single `scenario` field or a `scenarios`
+array. With `scenarios`, one run id becomes a suite id and all scenarios share
+the same artifact root and InfluxDB `suite_id` tag.
+
 ## Scenario Packs
 
 Scenario packs are external .NET assemblies that reference
@@ -209,6 +214,13 @@ dotnet run --project src/ScenarioBench.Cli -- \
 
 That config uses `scenario.driver = "workflow"` and the demo pack executes
 `/health` and `/work` inside one measured NBomber iteration.
+
+For a suite with multiple scenarios in one run:
+
+```bash
+dotnet run --project src/ScenarioBench.Cli -- \
+  --config examples/http-workflow-suite.json
+```
 
 The private Unicorn adapter should follow the same shape but keep auth,
 endpoint paths, payloads, seed logic, and audit/database checks in the private
@@ -310,15 +322,21 @@ streamed to InfluxDB.
 
 The dashboard has variables at the top:
 
-- `Run`: concrete benchmark run id, for example `http-compare-20260522-122358`.
+- `Suite`: concrete suite/run id, for example `http-compare-20260522-122358`.
 - `Scenario`: scenario name inside the run, for example `work-baseline`.
 - `Target A`: first target to inspect, for example `old`.
 - `Target B`: second target to inspect, for example `new`.
-- `Step`: usually select `request`.
+- `Step`: select `request` for built-in HTTP scenarios or `workflow` for
+  scenario-pack workflows.
 
 For a one-target smoke run, set both `Target A` and `Target B` to the same
-value. For an old/new comparison, select the same `Run`, then select `old` in
+value. For an old/new comparison, select the same `Suite`, then select `old` in
 `Target A` and `new` in `Target B`.
+
+The dashboard includes a recent-runs table, a target comparison table, RPS and
+p95 delta stats, latency overlay, RPS overlay, and failure RPS overlay. Audit or
+business validation results are written to local artifacts (`manifest.json` and
+`result.json`); they are not streamed to InfluxDB yet.
 
 What you can change in Grafana:
 
@@ -388,7 +406,7 @@ Grafana is best for interactive inspection:
 
 - watch metrics during a run;
 - compare target A vs target B on one screen;
-- filter by `run_id`, `scenario`, `target`, and `step`;
+- filter by `suite_id`, `scenario`, `target`, and `step`;
 - change time range;
 - inspect latency/RPS over time;
 - use Explore for custom queries.

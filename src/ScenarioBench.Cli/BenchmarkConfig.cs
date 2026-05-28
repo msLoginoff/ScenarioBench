@@ -18,6 +18,8 @@ internal sealed record BenchmarkConfig
 
     public ScenarioConfig Scenario { get; init; } = new();
 
+    public IReadOnlyList<ScenarioConfig>? Scenarios { get; init; }
+
     public ScenarioPackConfig? ScenarioPack { get; init; }
 
     public static async Task<BenchmarkConfig> LoadAsync(string path)
@@ -65,8 +67,32 @@ internal sealed record BenchmarkConfig
             throw new InvalidOperationException($"Target name must be unique: {duplicateTarget.Key}");
         }
 
-        Scenario.Validate();
+        var scenarios = GetScenarios();
+        if (scenarios.Count == 0)
+        {
+            throw new InvalidOperationException("Config must contain at least one scenario.");
+        }
+
+        foreach (var scenario in scenarios)
+        {
+            scenario.Validate();
+        }
+
+        var duplicateScenario = scenarios
+            .GroupBy(scenario => scenario.Name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (duplicateScenario is not null)
+        {
+            throw new InvalidOperationException($"Scenario name must be unique: {duplicateScenario.Key}");
+        }
+
         ScenarioPack?.Validate();
+    }
+
+    public IReadOnlyList<ScenarioConfig> GetScenarios()
+    {
+        return Scenarios is { Count: > 0 } ? Scenarios : [Scenario];
     }
 }
 
@@ -135,6 +161,8 @@ internal sealed record ScenarioPackConfig
 internal sealed record ScenarioConfig
 {
     public string Name { get; init; } = "http-smoke";
+
+    public string? Workflow { get; init; }
 
     public string Driver { get; init; } = ScenarioDrivers.Http;
 

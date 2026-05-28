@@ -1,0 +1,62 @@
+{
+  "runName": "http-workflow-suite",
+  "metadata": {
+    "environment": "local-docker",
+    "branch": "demo",
+    "version": "demo",
+    "seed": "workflow-suite-demo"
+  },
+  "targets": [
+    {
+      "name": "local",
+      "baseUrl": "http://127.0.0.1:5002",
+      "tags": {
+        "kind": "demo"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "demo-multi-step",
+      "workflow": "demo-multi-step",
+      "driver": "workflow",
+      "stepName": "workflow",
+      "warmupSeconds": 0,
+      "loadProfile": {
+        "type": "inject",
+        "ratePerSecond": 5,
+        "durationSeconds": 5
+      },
+      "timeoutSeconds": 10,
+      "thresholds": {
+        "maxFailedRequests": 0,
+        "maxP95Ms": 1000
+      }
+    },
+    {
+      "name": "http-smoke",
+      "workflow": "request-count-validation",
+      "driver": "http",
+      "method": "GET",
+      "path": "/health",
+      "warmupSeconds": 0,
+      "loadProfile": {
+        "type": "inject",
+        "ratePerSecond": 5,
+        "durationSeconds": 5
+      },
+      "timeoutSeconds": 10,
+      "expectedStatusCodes": [200],
+      "thresholds": {
+        "maxFailedRequests": 0,
+        "maxP95Ms": 1000
+      }
+    }
+  ],
+  "scenarioPack": {
+    "assemblyPath": "demo-scenario-pack/bin/Debug/net10.0/ScenarioBench.DemoScenarioPack.dll",
+    "properties": {
+      "minTotalRequests": "1"
+    }
+  }
+}

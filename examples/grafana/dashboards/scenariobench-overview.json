@@ -17,7 +17,7 @@
   },
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
+  "graphTooltip": 1,
   "id": null,
   "links": [],
   "liveNow": false,
@@ -29,9 +29,161 @@
       },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95_ms"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "12.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "scenariobench-influxdb"
           },
+          "query": "SELECT last(\"ok.request.count\") AS \"ok\", last(\"fail.request.count\") AS \"failed\", last(\"ok.latency.percent95\") AS \"p95_ms\" FROM \"nbomber\" WHERE $timeFilter GROUP BY \"suite_id\", \"scenario\", \"target\", \"step\"",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "table"
+        }
+      ],
+      "title": "Recent Suites",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "scenariobench-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "decimals": 2
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/mean_ms|p50_ms|p95_ms|p99_ms|max_ms/"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rps"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "reqps"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "id": 2,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "12.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "scenariobench-influxdb"
+          },
+          "query": "SELECT last(\"ok.request.count\") AS \"ok\", last(\"fail.request.count\") AS \"failed\", last(\"ok.request.rps\") AS \"rps\", last(\"ok.latency.mean\") AS \"mean_ms\", last(\"ok.latency.percent50\") AS \"p50_ms\", last(\"ok.latency.percent95\") AS \"p95_ms\", last(\"ok.latency.percent99\") AS \"p99_ms\", last(\"ok.latency.max\") AS \"max_ms\" FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ AND (\"target\" =~ /^$target_a$/ OR \"target\" =~ /^$target_b$/) GROUP BY \"target\"",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "table"
+        }
+      ],
+      "title": "Target Comparison",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "scenariobench-influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
           "decimals": 2,
           "unit": "reqps"
         },
@@ -41,116 +193,7 @@
         "h": 5,
         "w": 6,
         "x": 0,
-        "y": 0
-      },
-      "id": 1,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.0",
-      "targets": [
-        {
-          "alias": "Target A RPS",
-          "datasource": {
-            "type": "influxdb",
-            "uid": "scenariobench-influxdb"
-          },
-          "groupBy": [],
-          "measurement": "nbomber",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": []
-        }
-      ],
-      "title": "Target A RPS",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "scenariobench-influxdb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "decimals": 2,
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 6,
-        "y": 0
-      },
-      "id": 2,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.0",
-      "targets": [
-        {
-          "alias": "Target A p95",
-          "datasource": {
-            "type": "influxdb",
-            "uid": "scenariobench-influxdb"
-          },
-          "query": "SELECT last(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Target A p95",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "scenariobench-influxdb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "decimals": 2,
-          "unit": "reqps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 12,
-        "y": 0
+        "y": 15
       },
       "id": 3,
       "options": {
@@ -172,18 +215,17 @@
       "pluginVersion": "12.0.0",
       "targets": [
         {
-          "alias": "Target B RPS",
           "datasource": {
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT last(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/",
+          "query": "SELECT last(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
         }
       ],
-      "title": "Target B RPS",
+      "title": "Target A RPS",
       "type": "stat"
     },
     {
@@ -194,15 +236,15 @@
       "fieldConfig": {
         "defaults": {
           "decimals": 2,
-          "unit": "ms"
+          "unit": "reqps"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 5,
         "w": 6,
-        "x": 18,
-        "y": 0
+        "x": 6,
+        "y": 15
       },
       "id": 4,
       "options": {
@@ -224,18 +266,163 @@
       "pluginVersion": "12.0.0",
       "targets": [
         {
-          "alias": "Target B p95",
           "datasource": {
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT last(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/",
+          "query": "SELECT last(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
         }
       ],
-      "title": "Target B p95",
+      "title": "Target B RPS",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "__expr__",
+        "uid": "__expr__"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2,
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 15
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "scenariobench-influxdb"
+          },
+          "hide": true,
+          "query": "SELECT last(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "scenariobench-influxdb"
+          },
+          "hide": true,
+          "query": "SELECT last(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/",
+          "rawQuery": true,
+          "refId": "B",
+          "resultFormat": "time_series"
+        },
+        {
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "($B - $A) / $A * 100",
+          "hide": false,
+          "refId": "RPS_DELTA",
+          "type": "math"
+        }
+      ],
+      "title": "RPS Delta B vs A",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "__expr__",
+        "uid": "__expr__"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2,
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 15
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "scenariobench-influxdb"
+          },
+          "hide": true,
+          "query": "SELECT last(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "scenariobench-influxdb"
+          },
+          "hide": true,
+          "query": "SELECT last(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/",
+          "rawQuery": true,
+          "refId": "B",
+          "resultFormat": "time_series"
+        },
+        {
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "($B - $A) / $A * 100",
+          "hide": false,
+          "refId": "P95_DELTA",
+          "type": "math"
+        }
+      ],
+      "title": "P95 Delta B vs A",
       "type": "stat"
     },
     {
@@ -252,12 +439,9 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "",
             "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 10,
+            "fillOpacity": 8,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -271,8 +455,8 @@
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "never",
-            "spanNulls": false,
+            "showPoints": "auto",
+            "spanNulls": true,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -287,16 +471,17 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 10,
+        "w": 24,
         "x": 0,
-        "y": 5
+        "y": 20
       },
-      "id": 5,
+      "id": 7,
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "bottom",
@@ -305,7 +490,7 @@
         "tooltip": {
           "hideZeros": false,
           "mode": "multi",
-          "sort": "none"
+          "sort": "asc"
         }
       },
       "pluginVersion": "12.0.0",
@@ -316,7 +501,7 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.latency.percent50\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.latency.percent50\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -327,7 +512,7 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series"
@@ -338,96 +523,20 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.latency.percent99\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.latency.percent99\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "C",
           "resultFormat": "time_series"
-        }
-      ],
-      "title": "Target A Latency",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "scenariobench-influxdb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 2,
-          "unit": "ms"
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 5
-      },
-      "id": 6,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.0.0",
-      "targets": [
         {
           "alias": "B p50",
           "datasource": {
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.latency.percent50\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.latency.percent50\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
-          "refId": "A",
+          "refId": "D",
           "resultFormat": "time_series"
         },
         {
@@ -436,9 +545,9 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.latency.percent95\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
-          "refId": "B",
+          "refId": "E",
           "resultFormat": "time_series"
         },
         {
@@ -447,13 +556,13 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.latency.percent99\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.latency.percent99\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
-          "refId": "C",
+          "refId": "F",
           "resultFormat": "time_series"
         }
       ],
-      "title": "Target B Latency",
+      "title": "Latency Overlay",
       "type": "timeseries"
     },
     {
@@ -472,13 +581,14 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 13
+        "y": 30
       },
-      "id": 7,
+      "id": 8,
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "bottom",
@@ -498,24 +608,24 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
         },
         {
-          "alias": "A fail RPS",
+          "alias": "B ok RPS",
           "datasource": {
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"fail.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series"
         }
       ],
-      "title": "Target A Requests",
+      "title": "RPS Overlay",
       "type": "timeseries"
     },
     {
@@ -534,13 +644,14 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 13
+        "y": 30
       },
-      "id": 8,
+      "id": 9,
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "mean"
           ],
           "displayMode": "table",
           "placement": "bottom",
@@ -555,12 +666,12 @@
       "pluginVersion": "12.0.0",
       "targets": [
         {
-          "alias": "B ok RPS",
+          "alias": "A fail RPS",
           "datasource": {
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"ok.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"fail.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_a$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series"
@@ -571,13 +682,13 @@
             "type": "influxdb",
             "uid": "scenariobench-influxdb"
           },
-          "query": "SELECT mean(\"fail.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"run_id\" =~ /^$run_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
+          "query": "SELECT mean(\"fail.request.rps\") FROM \"nbomber\" WHERE $timeFilter AND \"suite_id\" =~ /^$suite_id$/ AND \"target\" =~ /^$target_b$/ AND \"scenario\" =~ /^$scenario$/ AND \"step\" =~ /^$step$/ GROUP BY time($__interval) fill(null)",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series"
         }
       ],
-      "title": "Target B Requests",
+      "title": "Failure RPS Overlay",
       "type": "timeseries"
     }
   ],
@@ -595,13 +706,13 @@
           "type": "influxdb",
           "uid": "scenariobench-influxdb"
         },
-        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"run_id\"",
+        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"suite_id\"",
         "hide": 0,
         "includeAll": false,
-        "label": "Run",
+        "label": "Suite",
         "multi": false,
-        "name": "run_id",
-        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"run_id\"",
+        "name": "suite_id",
+        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"suite_id\"",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -614,13 +725,13 @@
           "type": "influxdb",
           "uid": "scenariobench-influxdb"
         },
-        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"scenario\"",
+        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"scenario\" WHERE \"suite_id\" =~ /^$suite_id$/",
         "hide": 0,
         "includeAll": false,
         "label": "Scenario",
         "multi": false,
         "name": "scenario",
-        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"scenario\"",
+        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"scenario\" WHERE \"suite_id\" =~ /^$suite_id$/",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -633,13 +744,13 @@
           "type": "influxdb",
           "uid": "scenariobench-influxdb"
         },
-        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"target\"",
+        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"target\" WHERE \"suite_id\" =~ /^$suite_id$/ AND \"scenario\" =~ /^$scenario$/",
         "hide": 0,
         "includeAll": false,
         "label": "Target A",
         "multi": false,
         "name": "target_a",
-        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"target\"",
+        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"target\" WHERE \"suite_id\" =~ /^$suite_id$/ AND \"scenario\" =~ /^$scenario$/",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -652,13 +763,13 @@
           "type": "influxdb",
           "uid": "scenariobench-influxdb"
         },
-        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"target\"",
+        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"target\" WHERE \"suite_id\" =~ /^$suite_id$/ AND \"scenario\" =~ /^$scenario$/",
         "hide": 0,
         "includeAll": false,
         "label": "Target B",
         "multi": false,
         "name": "target_b",
-        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"target\"",
+        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"target\" WHERE \"suite_id\" =~ /^$suite_id$/ AND \"scenario\" =~ /^$scenario$/",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -666,22 +777,18 @@
         "type": "query"
       },
       {
-        "current": {
-          "selected": true,
-          "text": "request",
-          "value": "request"
-        },
+        "current": {},
         "datasource": {
           "type": "influxdb",
           "uid": "scenariobench-influxdb"
         },
-        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"step\"",
+        "definition": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"step\" WHERE \"suite_id\" =~ /^$suite_id$/ AND \"scenario\" =~ /^$scenario$/",
         "hide": 0,
         "includeAll": false,
         "label": "Step",
         "multi": false,
         "name": "step",
-        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"step\"",
+        "query": "SHOW TAG VALUES FROM \"nbomber\" WITH KEY = \"step\" WHERE \"suite_id\" =~ /^$suite_id$/ AND \"scenario\" =~ /^$scenario$/",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -691,13 +798,13 @@
     ]
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-2h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "ScenarioBench NBomber Overview",
   "uid": "scenariobench-nbomber-overview",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

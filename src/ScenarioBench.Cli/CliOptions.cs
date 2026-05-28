@@ -15,6 +15,9 @@ internal sealed record CliOptions(string ConfigPath, string? InfraConfigPath, bo
 
           dotnet run --project src/ScenarioBench.Cli -- \
             --config examples/http-workflow-with-pack.json
+
+          dotnet run --project src/ScenarioBench.Cli -- \
+            --config examples/http-workflow-suite.json
         """;
 
     public static CliOptions Parse(string[] args)

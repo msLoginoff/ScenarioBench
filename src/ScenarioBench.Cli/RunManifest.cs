@@ -9,7 +9,7 @@ internal sealed record RunManifest(
     string ArtifactDirectory,
     string RunName,
     RunMetadataConfig Metadata,
-    ScenarioManifest Scenario,
+    IReadOnlyList<ScenarioManifest> Scenarios,
     IReadOnlyList<TargetRunResult> Targets)
 {
     public bool Passed => Targets.All(target => target.Passed);
@@ -28,4 +28,4 @@ internal sealed record ScenarioManifest(
 
 internal sealed record ScenarioPackManifest(
     string Name,
-    string Workflow);
+    string? Workflow);

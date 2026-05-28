@@ -21,8 +21,9 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
 
     public async Task<BenchmarkRunResult> RunAsync()
     {
-        var scenarioPack = ScenarioPackLoader.Load(config.ScenarioPack, configPath, config.Scenario.Name);
-        ValidateScenarioDriver(scenarioPack);
+        var scenarios = config.GetScenarios();
+        var scenarioPack = ScenarioPackLoader.Load(config.ScenarioPack, configPath);
+        ValidateScenarioDrivers(scenarioPack, scenarios);
         var runId = CreateRunId(config.RunName);
         var startedAt = DateTimeOffset.UtcNow;
         var artifactDirectory = Path.GetFullPath(Path.Combine("artifacts", runId));
@@ -31,8 +32,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
 
         if (scenarioPack is not null)
         {
-            Console.WriteLine(
-                $"Loaded scenario pack '{scenarioPack.Pack.Name}' workflow '{scenarioPack.Workflow.Name}'.");
+            Console.WriteLine($"Loaded scenario pack '{scenarioPack.Pack.Name}'.");
         }
 
         File.Copy(configPath, Path.Combine(artifactDirectory, "config.json"), overwrite: true);
@@ -48,16 +48,28 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
 
         var targetResults = new List<TargetRunResult>();
 
-        foreach (var target in config.Targets)
+        foreach (var scenario in scenarios)
         {
-            Console.WriteLine($"Running '{config.Scenario.Name}' against target '{target.Name}' ({target.BaseUrl})...");
+            var workflow = ResolveWorkflow(scenarioPack, scenario);
 
-            var targetResult = await RunTargetAsync(runContext, artifactDirectory, target, scenarioPack);
-            targetResults.Add(targetResult);
+            foreach (var target in config.Targets)
+            {
+                Console.WriteLine($"Running '{scenario.Name}' against target '{target.Name}' ({target.BaseUrl})...");
+
+                var targetResult = await RunTargetAsync(
+                    runContext,
+                    artifactDirectory,
+                    scenarios.Count,
+                    scenario,
+                    target,
+                    scenarioPack,
+                    workflow);
+                targetResults.Add(targetResult);
+            }
         }
 
         var comparisonPath = Path.Combine(artifactDirectory, "comparison.md");
-        await ReportWriter.WriteComparisonAsync(config, runId, targetResults, comparisonPath);
+        await ReportWriter.WriteComparisonAsync(config, runId, scenarios, targetResults, comparisonPath);
 
         var manifest = new RunManifest(
             RunId: runId,
@@ -68,18 +80,20 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
             ArtifactDirectory: artifactDirectory,
             RunName: config.RunName,
             Metadata: config.Metadata,
-            Scenario: new ScenarioManifest(
-                Name: config.Scenario.Name,
-                Driver: config.Scenario.Driver,
-                StepName: config.Scenario.GetStepName(),
-                Method: config.Scenario.Method,
-                Path: config.Scenario.Path,
-                LoadProfile: config.Scenario.GetEffectiveLoadProfile().Describe(),
-                WarmupSeconds: config.Scenario.WarmupSeconds,
-                Thresholds: config.Scenario.Thresholds,
+            Scenarios: scenarios.Select(scenario => new ScenarioManifest(
+                Name: scenario.Name,
+                Driver: scenario.Driver,
+                StepName: scenario.GetStepName(),
+                Method: scenario.Method,
+                Path: scenario.Path,
+                LoadProfile: scenario.GetEffectiveLoadProfile().Describe(),
+                WarmupSeconds: scenario.WarmupSeconds,
+                Thresholds: scenario.Thresholds,
                 ScenarioPack: scenarioPack is null
                     ? null
-                    : new ScenarioPackManifest(scenarioPack.Pack.Name, scenarioPack.Workflow.Name)),
+                    : new ScenarioPackManifest(
+                        scenarioPack.Pack.Name,
+                        ResolveWorkflow(scenarioPack, scenario)?.Name))).ToArray(),
             Targets: targetResults);
 
         var manifestPath = Path.Combine(artifactDirectory, "manifest.json");
@@ -88,71 +102,92 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         return new BenchmarkRunResult(runId, artifactDirectory, comparisonPath, manifestPath, targetResults);
     }
 
-    private void ValidateScenarioDriver(LoadedScenarioPack? scenarioPack)
+    private void ValidateScenarioDrivers(
+        LoadedScenarioPack? scenarioPack,
+        IReadOnlyList<ScenarioConfig> scenarios)
     {
-        if (config.Scenario.Driver != ScenarioDrivers.Workflow)
+        foreach (var scenario in scenarios)
         {
-            return;
-        }
+            var workflow = ResolveWorkflow(scenarioPack, scenario);
 
+            if (scenario.Driver == ScenarioDrivers.Workflow && scenarioPack is null)
+            {
+                throw new InvalidOperationException(
+                    $"Scenario '{scenario.Name}' driver 'workflow' requires scenarioPack configuration.");
+            }
+
+            if (scenario.Driver == ScenarioDrivers.Workflow && workflow is not IScenarioLoadWorkflow)
+            {
+                throw new InvalidOperationException(
+                    $"Scenario pack workflow '{workflow?.Name}' must implement {nameof(IScenarioLoadWorkflow)} when scenario '{scenario.Name}' driver is 'workflow'.");
+            }
+        }
+    }
+
+    private IScenarioWorkflow? ResolveWorkflow(LoadedScenarioPack? scenarioPack, ScenarioConfig scenario)
+    {
         if (scenarioPack is null)
         {
-            throw new InvalidOperationException("Scenario driver 'workflow' requires scenarioPack configuration.");
+            return null;
         }
 
-        if (scenarioPack.Workflow is not IScenarioLoadWorkflow)
-        {
-            throw new InvalidOperationException(
-                $"Scenario pack workflow '{scenarioPack.Workflow.Name}' must implement {nameof(IScenarioLoadWorkflow)} when scenario.driver is 'workflow'.");
-        }
+        return ScenarioPackLoader.SelectWorkflow(scenarioPack, config.ScenarioPack!, scenario);
     }
 
     private async Task<TargetRunResult> RunTargetAsync(
         ScenarioRunContext runContext,
         string artifactDirectory,
+        int scenarioCount,
+        ScenarioConfig scenarioConfig,
         TargetConfig target,
-        LoadedScenarioPack? scenarioPack)
+        LoadedScenarioPack? scenarioPack,
+        IScenarioWorkflow? workflow)
     {
-        using var httpClient = config.Scenario.Driver == ScenarioDrivers.Http ? CreateHttpClient(target) : null;
-        var targetDirectory = Path.Combine(artifactDirectory, SanitizeName(target.Name));
+        using var httpClient = scenarioConfig.Driver == ScenarioDrivers.Http ? CreateHttpClient(target, scenarioConfig) : null;
+        var scenarioDirectory = scenarioCount == 1
+            ? artifactDirectory
+            : Path.Combine(artifactDirectory, SanitizeName(scenarioConfig.Name));
+        var targetDirectory = Path.Combine(scenarioDirectory, SanitizeName(target.Name));
         Directory.CreateDirectory(targetDirectory);
         var targetContext = CreateTargetContext(target);
 
-        if (scenarioPack is not null)
+        if (scenarioPack is not null && workflow is not null)
         {
-            await scenarioPack.Workflow.PrepareAsync(
+            await workflow.PrepareAsync(
                 new ScenarioPrepareContext(
                     runContext,
                     targetContext,
-                    config.Scenario.Name,
+                    scenarioConfig.Name,
                     targetDirectory,
                     scenarioPack.Properties));
         }
 
         long workflowIteration = 0;
         var scenario = Scenario
-            .Create(config.Scenario.Name, async context =>
-                await Step.Run(config.Scenario.GetStepName(), context, async () =>
-                    config.Scenario.Driver == ScenarioDrivers.Workflow
+            .Create(scenarioConfig.Name, async context =>
+                await Step.Run(scenarioConfig.GetStepName(), context, async () =>
+                    scenarioConfig.Driver == ScenarioDrivers.Workflow
                         ? await ExecuteWorkflowStepAsync(
                             runContext,
                             targetContext,
                             targetDirectory,
                             scenarioPack!,
+                            (IScenarioLoadWorkflow)workflow!,
+                            scenarioConfig,
                             Interlocked.Increment(ref workflowIteration),
                             context.ScenarioCancellationToken)
-                        : await ExecuteHttpStepAsync(httpClient!, target, context.ScenarioCancellationToken)))
-            .WithLoadSimulations(CreateLoadSimulation(config.Scenario.GetEffectiveLoadProfile()));
+                        : await ExecuteHttpStepAsync(httpClient!, target, scenarioConfig, context.ScenarioCancellationToken)))
+            .WithLoadSimulations(CreateLoadSimulation(scenarioConfig.GetEffectiveLoadProfile()));
 
-        scenario = config.Scenario.WarmupSeconds > 0
-            ? scenario.WithWarmUpDuration(TimeSpan.FromSeconds(config.Scenario.WarmupSeconds))
+        scenario = scenarioConfig.WarmupSeconds > 0
+            ? scenario.WithWarmUpDuration(TimeSpan.FromSeconds(scenarioConfig.WarmupSeconds))
             : scenario.WithoutWarmUp();
 
         var nbomber = NBomberRunner
             .RegisterScenarios(scenario)
             .WithTestSuite(config.RunName)
-            .WithTestName($"{config.RunName}/{target.Name}/{config.Scenario.Name}")
-            .WithSessionId($"{runContext.RunId}-{SanitizeName(target.Name)}")
+            .WithTestName($"{config.RunName}/{scenarioConfig.Name}/{target.Name}")
+            .WithSessionId($"{runContext.RunId}-{SanitizeName(scenarioConfig.Name)}-{SanitizeName(target.Name)}")
             .WithReportFolder(targetDirectory)
             .WithReportFileName("nbomber")
             .WithReportFormats(ReportFormat.Txt, ReportFormat.Md, ReportFormat.Html, ReportFormat.Csv);
@@ -161,7 +196,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         {
             var generatedInfraConfigPath = await InfluxInfraConfigWriter.WriteTargetConfigAsync(
                 Path.GetFullPath(infraConfigPath),
-                Path.Combine(artifactDirectory, "infra-config.generated", $"{SanitizeName(target.Name)}.json"),
+                Path.Combine(artifactDirectory, "infra-config.generated", $"{SanitizeName(scenarioConfig.Name)}-{SanitizeName(target.Name)}.json"),
                 CreateInfluxTags(runContext.RunId, target));
 
             nbomber = nbomber
@@ -171,14 +206,14 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
 
         var stats = nbomber.Run();
 
-        var result = TargetRunResult.FromStats(target, config.Scenario, stats, targetDirectory);
-        if (scenarioPack is not null)
+        var result = TargetRunResult.FromStats(target, scenarioConfig, stats, targetDirectory);
+        if (scenarioPack is not null && workflow is not null)
         {
-            var validationResults = await scenarioPack.Workflow.ValidateAsync(
+            var validationResults = await workflow.ValidateAsync(
                 new ScenarioValidationContext(
                     runContext,
                     targetContext,
-                    config.Scenario.Name,
+                    scenarioConfig.Name,
                     targetDirectory,
                     result.ToScenarioTargetResult(),
                     scenarioPack.Properties));
@@ -195,9 +230,10 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
     private async Task<Response<object>> ExecuteHttpStepAsync(
         HttpClient httpClient,
         TargetConfig target,
+        ScenarioConfig scenarioConfig,
         CancellationToken cancellationToken)
     {
-        using var request = CreateRequest(target);
+        using var request = CreateRequest(target, scenarioConfig);
         using var response = await httpClient.SendAsync(
             request,
             HttpCompletionOption.ResponseHeadersRead,
@@ -206,7 +242,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         var statusCode = (int)response.StatusCode;
         var sizeBytes = response.Content.Headers.ContentLength ?? 0;
 
-        if (config.Scenario.ExpectedStatusCodes.Contains(statusCode))
+        if (scenarioConfig.ExpectedStatusCodes.Contains(statusCode))
         {
             return Response.Ok(statusCode: statusCode.ToString(CultureInfo.InvariantCulture), sizeBytes: sizeBytes);
         }
@@ -222,15 +258,16 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         ScenarioTargetContext targetContext,
         string targetDirectory,
         LoadedScenarioPack scenarioPack,
+        IScenarioLoadWorkflow loadWorkflow,
+        ScenarioConfig scenarioConfig,
         long iteration,
         CancellationToken cancellationToken)
     {
-        var loadWorkflow = (IScenarioLoadWorkflow)scenarioPack.Workflow;
         var result = await loadWorkflow.ExecuteAsync(
             new ScenarioExecutionContext(
                 runContext,
                 targetContext,
-                config.Scenario.Name,
+                scenarioConfig.Name,
                 iteration,
                 targetDirectory,
                 scenarioPack.Properties),
@@ -241,12 +278,12 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
             : Response.Fail(statusCode: result.StatusCode, message: result.Message, sizeBytes: result.SizeBytes);
     }
 
-    private HttpClient CreateHttpClient(TargetConfig target)
+    private static HttpClient CreateHttpClient(TargetConfig target, ScenarioConfig scenarioConfig)
     {
         var httpClient = new HttpClient
         {
             BaseAddress = target.BaseUrl,
-            Timeout = TimeSpan.FromSeconds(config.Scenario.TimeoutSeconds)
+            Timeout = TimeSpan.FromSeconds(scenarioConfig.TimeoutSeconds)
         };
 
         foreach (var (name, value) in target.Headers)
@@ -257,23 +294,23 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         return httpClient;
     }
 
-    private HttpRequestMessage CreateRequest(TargetConfig target)
+    private static HttpRequestMessage CreateRequest(TargetConfig target, ScenarioConfig scenarioConfig)
     {
-        var request = new HttpRequestMessage(new HttpMethod(config.Scenario.Method), config.Scenario.Path);
+        var request = new HttpRequestMessage(new HttpMethod(scenarioConfig.Method), scenarioConfig.Path);
 
-        foreach (var (name, value) in config.Scenario.Headers)
+        foreach (var (name, value) in scenarioConfig.Headers)
         {
             request.Headers.TryAddWithoutValidation(name, value);
         }
 
-        if (config.Scenario.Body is not null)
+        if (scenarioConfig.Body is not null)
         {
-            request.Content = new StringContent(config.Scenario.Body, Encoding.UTF8);
-            request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(config.Scenario.ContentType);
+            request.Content = new StringContent(scenarioConfig.Body, Encoding.UTF8);
+            request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(scenarioConfig.ContentType);
         }
 
         request.Headers.TryAddWithoutValidation("X-ScenarioBench-Target", target.Name);
-        request.Headers.TryAddWithoutValidation("X-ScenarioBench-Scenario", config.Scenario.Name);
+        request.Headers.TryAddWithoutValidation("X-ScenarioBench-Scenario", scenarioConfig.Name);
 
         return request;
     }
@@ -342,6 +379,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
     {
         var tags = new Dictionary<string, string>
         {
+            ["suite_id"] = runId,
             ["run_id"] = runId,
             ["target"] = target.Name
         };

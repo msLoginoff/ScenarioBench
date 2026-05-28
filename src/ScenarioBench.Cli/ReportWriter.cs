@@ -8,6 +8,7 @@ internal static class ReportWriter
     public static async Task WriteComparisonAsync(
         BenchmarkConfig config,
         string runId,
+        IReadOnlyList<ScenarioConfig> scenarios,
         IReadOnlyList<TargetRunResult> targets,
         string path)
     {
@@ -16,14 +17,35 @@ internal static class ReportWriter
         builder.AppendLine($"# ScenarioBench Comparison: {config.RunName}");
         builder.AppendLine();
         builder.AppendLine($"- Run ID: `{runId}`");
+        builder.AppendLine($"- Scenarios: `{scenarios.Count}`");
         AppendMetadata(builder, config.Metadata);
-        builder.AppendLine($"- Scenario: `{config.Scenario.Name}`");
-        builder.AppendLine($"- Driver: `{config.Scenario.Driver}`");
-        builder.AppendLine($"- Step: `{config.Scenario.GetStepName()}`");
-        builder.AppendLine($"- Method: `{config.Scenario.Method}`");
-        builder.AppendLine($"- Path: `{config.Scenario.Path}`");
-        builder.AppendLine($"- Load profile: `{config.Scenario.GetEffectiveLoadProfile().Describe()}`");
-        builder.AppendLine($"- Warmup: `{config.Scenario.WarmupSeconds}` sec");
+        builder.AppendLine();
+
+        foreach (var scenario in scenarios)
+        {
+            var scenarioTargets = targets
+                .Where(target => string.Equals(target.ScenarioName, scenario.Name, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+            AppendScenarioComparison(builder, scenario, scenarioTargets);
+        }
+
+        await File.WriteAllTextAsync(path, builder.ToString());
+    }
+
+    private static void AppendScenarioComparison(
+        StringBuilder builder,
+        ScenarioConfig scenario,
+        IReadOnlyList<TargetRunResult> targets)
+    {
+        builder.AppendLine($"## Scenario `{scenario.Name}`");
+        builder.AppendLine();
+        builder.AppendLine($"- Driver: `{scenario.Driver}`");
+        builder.AppendLine($"- Step: `{scenario.GetStepName()}`");
+        builder.AppendLine($"- Method: `{scenario.Method}`");
+        builder.AppendLine($"- Path: `{scenario.Path}`");
+        builder.AppendLine($"- Load profile: `{scenario.GetEffectiveLoadProfile().Describe()}`");
+        builder.AppendLine($"- Warmup: `{scenario.WarmupSeconds}` sec");
         builder.AppendLine();
 
         builder.AppendLine("| Target | Status | Requests | OK | Failed | RPS | Mean, ms | P50, ms | P95, ms | P99, ms | Max, ms |");
@@ -41,12 +63,12 @@ internal static class ReportWriter
         if (thresholdFailedTargets.Length > 0)
         {
             builder.AppendLine();
-            builder.AppendLine("## Failed Thresholds");
+            builder.AppendLine("### Failed Thresholds");
             builder.AppendLine();
 
             foreach (var target in thresholdFailedTargets)
             {
-                builder.AppendLine($"### {target.TargetName}");
+                builder.AppendLine($"#### {target.TargetName}");
                 builder.AppendLine();
 
                 foreach (var reason in target.FailureReasons)
@@ -65,7 +87,7 @@ internal static class ReportWriter
         if (targetsWithValidation.Length > 0)
         {
             builder.AppendLine();
-            builder.AppendLine("## Validation Results");
+            builder.AppendLine("### Validation Results");
             builder.AppendLine();
             builder.AppendLine("| Target | Validation | Status | Issues |");
             builder.AppendLine("| --- | --- | --- | ---: |");
@@ -87,12 +109,12 @@ internal static class ReportWriter
             if (validationsWithIssues.Length > 0)
             {
                 builder.AppendLine();
-                builder.AppendLine("### Validation Issues");
+                builder.AppendLine("#### Validation Issues");
                 builder.AppendLine();
 
                 foreach (var item in validationsWithIssues)
                 {
-                    builder.AppendLine($"#### {item.TargetName} / {item.Validation.Name}");
+                    builder.AppendLine($"##### {item.TargetName} / {item.Validation.Name}");
                     builder.AppendLine();
 
                     foreach (var issue in item.Validation.Issues)
@@ -111,7 +133,7 @@ internal static class ReportWriter
         if (baseline is not null && targets.Count > 1)
         {
             builder.AppendLine();
-            builder.AppendLine($"## Delta vs `{baseline.TargetName}`");
+            builder.AppendLine($"### Delta vs `{baseline.TargetName}`");
             builder.AppendLine();
             builder.AppendLine("| Target | RPS delta | P95 delta | P99 delta | Failed delta |");
             builder.AppendLine("| --- | ---: | ---: | ---: | ---: |");
@@ -125,7 +147,7 @@ internal static class ReportWriter
             }
         }
 
-        await File.WriteAllTextAsync(path, builder.ToString());
+        builder.AppendLine();
     }
 
     private static void AppendMetadata(StringBuilder builder, RunMetadataConfig metadata)
