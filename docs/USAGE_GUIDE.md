@@ -287,6 +287,23 @@ artifacts/<suite-id>/<scenario>/<target>/result.json
 InfluxDB gets both `suite_id` and `run_id` tags with the same value for new
 runs. Dashboards use `suite_id`.
 
+Run only part of a suite without editing JSON:
+
+```bash
+dotnet run --project src/ScenarioBench.Cli -- \
+  --config examples/http-workflow-suite.json \
+  --scenario patient-audit-hot-flow,clinical-audit-flow \
+  --target old,new
+```
+
+Inspect what a config and pack expose:
+
+```bash
+dotnet run --project src/ScenarioBench.Cli -- \
+  --config examples/http-workflow-suite.json \
+  --list-scenarios
+```
+
 Example:
 
 ```text
@@ -319,6 +336,21 @@ Configure a pack in JSON:
   "workflow": "request-count-validation",
   "properties": {
     "minTotalRequests": "1"
+  }
+}
+```
+
+`scenarioPack.properties` are global to the suite. Each scenario can define
+`properties` to override or add values for that scenario:
+
+```json
+{
+  "name": "patient-audit-hot-flow",
+  "workflow": "patient-audit-hot-flow",
+  "driver": "workflow",
+  "properties": {
+    "seed": "patient-flow-v2",
+    "batchSize": "50"
   }
 }
 ```

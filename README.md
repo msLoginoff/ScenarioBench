@@ -168,6 +168,23 @@ A config can contain either the legacy single `scenario` field or a `scenarios`
 array. With `scenarios`, one run id becomes a suite id and all scenarios share
 the same artifact root and InfluxDB `suite_id` tag.
 
+Use CLI filters to run part of a suite without editing JSON:
+
+```bash
+dotnet run --project src/ScenarioBench.Cli -- \
+  --config examples/http-workflow-suite.json \
+  --scenario demo-multi-step,http-smoke \
+  --target old,new
+```
+
+List configured scenarios, targets, and scenario-pack workflows:
+
+```bash
+dotnet run --project src/ScenarioBench.Cli -- \
+  --config examples/http-workflow-suite.json \
+  --list-scenarios
+```
+
 ## Scenario Packs
 
 Scenario packs are external .NET assemblies that reference
@@ -266,6 +283,9 @@ repository.
   }
 }
 ```
+
+`scenarioPack.properties` apply to the whole suite. `scenario.properties`
+override or extend them for one scenario.
 
 In this example, ScenarioBench sends `GET /health` requests to the demo API at
 `http://127.0.0.1:5002`. This endpoint only returns `200 OK` and `ok`; it exists

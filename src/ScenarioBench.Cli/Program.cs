@@ -19,7 +19,14 @@ if (options.Error is not null)
 try
 {
     var config = await BenchmarkConfig.LoadAsync(options.ConfigPath);
-    var runner = new BenchmarkRunner(config, options.ConfigPath, options.InfraConfigPath);
+    if (options.ListScenarios)
+    {
+        var scenarioPack = ScenarioPackLoader.Load(config.ScenarioPack, options.ConfigPath);
+        ScenarioLister.Write(config, scenarioPack);
+        return 0;
+    }
+
+    var runner = new BenchmarkRunner(config, options.ConfigPath, options.InfraConfigPath, options.Selection);
     var runResult = await runner.RunAsync();
 
     Console.WriteLine();

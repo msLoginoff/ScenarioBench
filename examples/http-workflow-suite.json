@@ -19,6 +19,9 @@
     {
       "name": "demo-multi-step",
       "workflow": "demo-multi-step",
+      "properties": {
+        "minTotalRequests": "1"
+      },
       "driver": "workflow",
       "stepName": "workflow",
       "warmupSeconds": 0,
@@ -36,6 +39,9 @@
     {
       "name": "http-smoke",
       "workflow": "request-count-validation",
+      "properties": {
+        "minTotalRequests": "1"
+      },
       "driver": "http",
       "method": "GET",
       "path": "/health",
@@ -56,7 +62,7 @@
   "scenarioPack": {
     "assemblyPath": "demo-scenario-pack/bin/Debug/net10.0/ScenarioBench.DemoScenarioPack.dll",
     "properties": {
-      "minTotalRequests": "1"
+      "suite": "workflow-suite-demo"
     }
   }
 }

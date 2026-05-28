@@ -11,7 +11,11 @@ using ScenarioBench.Abstractions;
 
 namespace ScenarioBench.Cli;
 
-internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath, string? infraConfigPath)
+internal sealed class BenchmarkRunner(
+    BenchmarkConfig config,
+    string configPath,
+    string? infraConfigPath,
+    RunSelection selection)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -21,7 +25,8 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
 
     public async Task<BenchmarkRunResult> RunAsync()
     {
-        var scenarios = config.GetScenarios();
+        var scenarios = ApplyScenarioFilter(config.GetScenarios());
+        var targets = ApplyTargetFilter(config.Targets);
         var scenarioPack = ScenarioPackLoader.Load(config.ScenarioPack, configPath);
         ValidateScenarioDrivers(scenarioPack, scenarios);
         var runId = CreateRunId(config.RunName);
@@ -52,7 +57,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         {
             var workflow = ResolveWorkflow(scenarioPack, scenario);
 
-            foreach (var target in config.Targets)
+            foreach (var target in targets)
             {
                 Console.WriteLine($"Running '{scenario.Name}' against target '{target.Name}' ({target.BaseUrl})...");
 
@@ -102,6 +107,52 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         return new BenchmarkRunResult(runId, artifactDirectory, comparisonPath, manifestPath, targetResults);
     }
 
+    private IReadOnlyList<ScenarioConfig> ApplyScenarioFilter(IReadOnlyList<ScenarioConfig> scenarios)
+    {
+        if (!selection.HasScenarioFilter)
+        {
+            return scenarios;
+        }
+
+        var selected = scenarios
+            .Where(scenario => selection.ScenarioNames.Contains(scenario.Name))
+            .ToArray();
+
+        var missing = selection.ScenarioNames
+            .Where(name => scenarios.All(scenario => !string.Equals(scenario.Name, name, StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
+
+        if (missing.Length > 0)
+        {
+            throw new InvalidOperationException($"Unknown scenario filter value(s): {string.Join(", ", missing)}");
+        }
+
+        return selected;
+    }
+
+    private IReadOnlyList<TargetConfig> ApplyTargetFilter(IReadOnlyList<TargetConfig> targets)
+    {
+        if (!selection.HasTargetFilter)
+        {
+            return targets;
+        }
+
+        var selected = targets
+            .Where(target => selection.TargetNames.Contains(target.Name))
+            .ToArray();
+
+        var missing = selection.TargetNames
+            .Where(name => targets.All(target => !string.Equals(target.Name, name, StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
+
+        if (missing.Length > 0)
+        {
+            throw new InvalidOperationException($"Unknown target filter value(s): {string.Join(", ", missing)}");
+        }
+
+        return selected;
+    }
+
     private void ValidateScenarioDrivers(
         LoadedScenarioPack? scenarioPack,
         IReadOnlyList<ScenarioConfig> scenarios)
@@ -144,6 +195,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         IScenarioWorkflow? workflow)
     {
         using var httpClient = scenarioConfig.Driver == ScenarioDrivers.Http ? CreateHttpClient(target, scenarioConfig) : null;
+        var scenarioProperties = CreateScenarioProperties(scenarioPack, scenarioConfig);
         var scenarioDirectory = scenarioCount == 1
             ? artifactDirectory
             : Path.Combine(artifactDirectory, SanitizeName(scenarioConfig.Name));
@@ -159,7 +211,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
                     targetContext,
                     scenarioConfig.Name,
                     targetDirectory,
-                    scenarioPack.Properties));
+                    scenarioProperties));
         }
 
         long workflowIteration = 0;
@@ -174,6 +226,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
                             scenarioPack!,
                             (IScenarioLoadWorkflow)workflow!,
                             scenarioConfig,
+                            scenarioProperties,
                             Interlocked.Increment(ref workflowIteration),
                             context.ScenarioCancellationToken)
                         : await ExecuteHttpStepAsync(httpClient!, target, scenarioConfig, context.ScenarioCancellationToken)))
@@ -216,7 +269,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
                     scenarioConfig.Name,
                     targetDirectory,
                     result.ToScenarioTargetResult(),
-                    scenarioPack.Properties));
+                    scenarioProperties));
 
             result = result.WithValidationResults(validationResults);
         }
@@ -260,6 +313,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         LoadedScenarioPack scenarioPack,
         IScenarioLoadWorkflow loadWorkflow,
         ScenarioConfig scenarioConfig,
+        IReadOnlyDictionary<string, string> scenarioProperties,
         long iteration,
         CancellationToken cancellationToken)
     {
@@ -270,7 +324,7 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
                 scenarioConfig.Name,
                 iteration,
                 targetDirectory,
-                scenarioPack.Properties),
+                scenarioProperties),
             cancellationToken);
 
         return result.IsOk
@@ -402,6 +456,28 @@ internal sealed class BenchmarkRunner(BenchmarkConfig config, string configPath,
         }
 
         return tags;
+    }
+
+    private static IReadOnlyDictionary<string, string> CreateScenarioProperties(
+        LoadedScenarioPack? scenarioPack,
+        ScenarioConfig scenarioConfig)
+    {
+        var properties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        if (scenarioPack is not null)
+        {
+            foreach (var (key, value) in scenarioPack.Properties)
+            {
+                properties[key] = value;
+            }
+        }
+
+        foreach (var (key, value) in scenarioConfig.Properties)
+        {
+            properties[key] = value;
+        }
+
+        return properties;
     }
 
     private static void AddOptional(IDictionary<string, string> tags, string key, string? value)

@@ -164,6 +164,8 @@ internal sealed record ScenarioConfig
 
     public string? Workflow { get; init; }
 
+    public IReadOnlyDictionary<string, string> Properties { get; init; } = new Dictionary<string, string>();
+
     public string Driver { get; init; } = ScenarioDrivers.Http;
 
     public string? StepName { get; init; }
