@@ -144,6 +144,7 @@ To change load, change:
 - `loadProfile.ratePerSecond`;
 - `loadProfile.copies`;
 - `loadProfile.durationSeconds`;
+- `loadProfile.intervalSeconds`;
 - `warmupSeconds`.
 
 Supported load profile types:
@@ -152,6 +153,10 @@ Supported load profile types:
 - `rampingInject`: ramp from zero to the configured request rate;
 - `constant`: fixed number of scenario copies/users;
 - `rampingConstant`: ramp from zero to the configured number of copies/users.
+
+For `inject` and `rampingInject`, NBomber interprets `ratePerSecond` together
+with `intervalSeconds`: `ratePerSecond: 1` and `intervalSeconds: 2` means one
+request per 2-second interval, roughly 0.5 requests/sec.
 
 To test another endpoint, change:
 

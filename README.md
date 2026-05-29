@@ -402,6 +402,10 @@ Supported load profile types:
 - `constant`: keep a fixed number of scenario copies/users;
 - `rampingConstant`: ramp from zero to the configured number of copies/users.
 
+For `inject` and `rampingInject`, NBomber uses `ratePerSecond` with
+`intervalSeconds`: `ratePerSecond: 1` and `intervalSeconds: 2` means one
+request per 2-second interval, roughly 0.5 requests/sec.
+
 ## Reading Metrics
 
 Latency means how long a request took.

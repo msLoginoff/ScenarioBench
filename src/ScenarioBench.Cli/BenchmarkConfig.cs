@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 namespace ScenarioBench.Cli;
@@ -334,12 +335,30 @@ internal sealed record LoadProfileConfig
     {
         return Type switch
         {
-            LoadProfileTypes.Inject => $"inject {RatePerSecond} req/sec for {DurationSeconds}s",
-            LoadProfileTypes.RampingInject => $"ramping inject to {RatePerSecond} req/sec for {DurationSeconds}s",
+            LoadProfileTypes.Inject => $"inject {DescribeInjectRate(RatePerSecond, IntervalSeconds)} for {DurationSeconds}s",
+            LoadProfileTypes.RampingInject => $"ramping inject to {DescribeInjectRate(RatePerSecond, IntervalSeconds)} for {DurationSeconds}s",
             LoadProfileTypes.Constant => $"constant {Copies} copies for {DurationSeconds}s",
             LoadProfileTypes.RampingConstant => $"ramping constant to {Copies} copies for {DurationSeconds}s",
             _ => Type
         };
+    }
+
+    private static string DescribeInjectRate(int? rate, int intervalSeconds)
+    {
+        if (rate is null)
+        {
+            return "unknown rate";
+        }
+
+        if (intervalSeconds == 1)
+        {
+            return string.Create(CultureInfo.InvariantCulture, $"{rate.Value} req/sec");
+        }
+
+        var effectiveRatePerSecond = rate.Value / (double)intervalSeconds;
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{rate.Value} req per {intervalSeconds}s interval (~{effectiveRatePerSecond:0.##} req/sec)");
     }
 }
 
